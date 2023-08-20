@@ -1,0 +1,25 @@
+{"_id":{"$oid":"64e087435268512ab468b32f"},"user_id":{"$numberLong":"5403535715"},"first_name":"Mainak","last_name":"Saha","user_name":"mainakSaha70","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"16"},"correct_guess":{"$numberInt":"6"},"wrong_guess":{"$numberInt":"9"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"358"}}
+
+{"_id":{"$oid":"64e087435268512ab468b32f"},"user_id":{"$numberLong":"5403535715"},"first_name":"Mainak","last_name":"Saha","user_name":"mainakSaha70","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"16"},"correct_guess":{"$numberInt":"6"},"wrong_guess":{"$numberInt":"9"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"358"}}
+
+{"_id":{"$oid":"64e08e7b5268512ab468b330"},"user_id":{"$numberLong":"5789540789"},"first_name":"mah","last_name":null,"user_name":"firstgnome","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"1"},"correct_guess":{"$numberInt":"0"},"wrong_guess":{"$numberInt":"0"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"0"}}
+
+{"_id":{"$oid":"64e0c4c65268512ab468b332"},"user_id":{"$numberInt":"1732569765"},"first_name":"Dipankar Dandapat","last_name":null,"user_name":null,"aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"0"},"correct_guess":{"$numberInt":"0"},"wrong_guess":{"$numberInt":"0"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"0"}}
+
+{"_id":{"$oid":"64e0c4d35268512ab468b333"},"user_id":{"$numberInt":"1413059089"},"first_name":"Abhradeep S","last_name":null,"user_name":"sarkar_527","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"3"},"correct_guess":{"$numberInt":"1"},"wrong_guess":{"$numberInt":"2"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"73"}}
+
+{"_id":{"$oid":"64e0c4e05268512ab468b334"},"user_id":{"$numberInt":"932253343"},"first_name":"Pritam","last_name":"Ghosh","user_name":"ERROREVER","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"2"},"correct_guess":{"$numberInt":"1"},"wrong_guess":{"$numberInt":"1"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"34"}}
+
+{"_id":{"$oid":"64e0c5545268512ab468b335"},"user_id":{"$numberInt":"1454274415"},"first_name":"Ishan Samanta","last_name":null,"user_name":null,"aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"0"},"correct_guess":{"$numberInt":"0"},"wrong_guess":{"$numberInt":"0"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"0"}}
+
+
+{"_id":{"$oid":"64e0c5df5268512ab468b336"},"user_id":{"$numberInt":"1436706850"},"first_name":"s ʜ ᴀ ᴀ ɴ","last_name":null,"user_name":"wasim_afrose","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"4"},"correct_guess":{"$numberInt":"3"},"wrong_guess":{"$numberInt":"1"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"40"}}
+
+
+{"_id":{"$oid":"64e0c67f5268512ab468b337"},"user_id":{"$numberInt":"1817459215"},"first_name":"Ankita K.","last_name":null,"user_name":"Ankita_zZzzzz","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"6"},"correct_guess":{"$numberInt":"4"},"wrong_guess":{"$numberInt":"2"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"112"}}
+
+
+
+{"_id":{"$oid":"64e0c8825268512ab468b338"},"user_id":{"$numberLong":"6064192787"},"first_name":"Aryan","last_name":null,"user_name":null,"aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"2"},"correct_guess":{"$numberInt":"1"},"wrong_guess":{"$numberInt":"1"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"25"}}
+
+{"_id":{"$oid":"64e0d4f1b630cf8e8a191f71"},"user_id":{"$numberLong":"5272596307"},"first_name":"Tasrif","last_name":"Khan","user_name":"thetasrifkhan","aki_lang":"en","child_mode":{"$numberInt":"1"},"total_guess":{"$numberInt":"1"},"correct_guess":{"$numberInt":"0"},"wrong_guess":{"$numberInt":"0"},"unfinished_guess":{"$numberInt":"0"},"total_questions":{"$numberInt":"0"}}
