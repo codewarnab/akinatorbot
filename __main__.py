@@ -7,7 +7,7 @@ from pprint import pprint
 from keyboard import AKI_LANG_BUTTON, AKI_LEADERBOARD_KEYBOARD, AKI_PLAY_KEYBOARD, AKI_WIN_BUTTON, CHILDMODE_BUTTON, START_KEYBOARD,SHARE_BUTTON
 from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, CallbackContext, CallbackQueryHandler,Filters, MessageHandler
-from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID,PUBLIC_CHANNRL_USERNAME
+from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID,PUBLIC_CHANNEL_USERNAME
 import logging
 from database import (
     addUser, 
@@ -263,7 +263,7 @@ def forward_messege(update: Update, context: CallbackContext) -> None:
             except Exception as e:
                 logging.error(f"Error forwarding : {e}")
     else :
-        context.bot.forward_message(chat_id=PUBLIC_CHANNRL_USERNAME,
+        context.bot.forward_message(chat_id=PUBLIC_CHANNEL_USERNAME,
                                     from_chat_id=update.message.chat_id,
                                     message_id=update.message.message_id)
         context.bot.send_message(chat_id="@fu5YJu1Nz4RI_CY",
