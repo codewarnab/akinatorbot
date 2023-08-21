@@ -202,7 +202,7 @@ def del_data(context:CallbackContext, user_id: int):
 
 
 def aki_lead(update: Update, _:CallbackContext) -> None:
-    if update.effective_user.id == 6023650727:
+    if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
         update.message.reply_text(
             text="Check Leaderboard on specific categories in Akinator.",
             reply_markup=AKI_LEADERBOARD_KEYBOARD
