@@ -7,7 +7,7 @@ from pprint import pprint
 from keyboard import AKI_LANG_BUTTON, AKI_LEADERBOARD_KEYBOARD, AKI_PLAY_KEYBOARD, AKI_WIN_BUTTON, CHILDMODE_BUTTON, START_KEYBOARD,SHARE_BUTTON
 from telegram import Update, ParseMode
 from telegram.ext import Updater, CommandHandler, CallbackContext, CallbackQueryHandler,Filters, MessageHandler
-from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID,PUBLIC_CHANNEL_USERNAME
+from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID
 import logging
 from database import (
     addUser, 
@@ -247,29 +247,7 @@ def aki_lead_cb_handler(update: Update, context:CallbackContext) -> None:
             reply_markup=AKI_LEADERBOARD_KEYBOARD
         )
         
-def forward_messege(update: Update, context: CallbackContext) -> None:
-    if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
-            subscribed_users= getAllUserIds()
-            try:
-                for user_id in subscribed_users:
-                    if update.message.reply_markup and update.message.reply_markup.inline_keyboard:
-                        context.bot.forward_message(chat_id=user_id, 
-                                                    from_chat_id=update.message.chat_id, message_id=update.message.message_id,
-                                                    disable_notification=False)
-                    else :
-                        context.bot.copy_message(chat_id=user_id,
-                                                 from_chat_id=update.message.chat_id, message_id=update.message.message_id)
-                logging.info(f"Message forwarded to {len(subscribed_users)} users")
-            except Exception as e:
-                logging.error(f"Error forwarding : {e}")
-    else :
-        context.bot.forward_message(chat_id=PUBLIC_CHANNEL_USERNAME,
-                                    from_chat_id=update.message.chat_id,
-                                    message_id=update.message.message_id)
-        context.bot.send_message(chat_id="@fu5YJu1Nz4RI_CY",
-                                 text=f"👆Message forwarded from @{update.effective_user.username}")
-        update.message.reply_text("send /play for playing Akinator")
-            
+
             
 def get_log(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
@@ -297,8 +275,6 @@ def main():
         updater = Updater(token=BOT_TOKEN)
         dp = updater.dispatcher
         dp.add_handler(CommandHandler('log', get_log, run_async=True))
-        dp.add_handler(CommandHandler('forward', forward_messege,run_async=True ))
-        dp.add_handler(MessageHandler(Filters.all & ~Filters.command, forward_messege))
         dp.add_handler(CommandHandler('start', aki_start, run_async=True))
         dp.add_handler(CommandHandler('find', aki_find, run_async=True))
         dp.add_handler(CommandHandler('me', aki_me, run_async=True))
@@ -306,7 +282,6 @@ def main():
         dp.add_handler(CommandHandler('language', aki_lang, run_async=True))
         dp.add_handler(CommandHandler('childmode', aki_childmode, run_async=True))
         dp.add_handler(CommandHandler('leaderboard', aki_lead, run_async=True))
-
         dp.add_handler(CallbackQueryHandler(aki_set_lang, pattern=r"aki_set_lang_", run_async=True))
         dp.add_handler(CallbackQueryHandler(aki_set_child_mode, pattern=r"c_mode_", run_async=True))
         dp.add_handler(CallbackQueryHandler(aki_play_callback_handler, pattern=r"aki_play_", run_async=True))
