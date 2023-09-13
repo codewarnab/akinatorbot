@@ -51,7 +51,17 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 `/me` - Shows stats about you.
 
 `/leaderboard` - Check leaderboard. It includes various categories!
-
+## Admin Commands 
+`broadcast`-Send any message(any poster,photo,text anything ) it will be forwarded to the all bot user 
+`/pin`- for pinning the broadcasted messege to the users of the bot (for toggling the pin function on and off ) 
+`/find`- See the user count of the bot
+## Inspired From
+[telegram-akinator-bot](https://github.com/adenosinetp10/Akinator-Bot)
+## Deployment 
+1 . download the repo as zip
+ 2.change the necassary details in the config.py 
+ 3 . learn how to deploy python script in gcloud [here](https://youtu.be/lEKp2O7MTfY?si=p2VYayICKKIxieKq)
+4 . if you want to host your python script in gcloud conatct [me](https://telegram.me/blacknut1803)
 ## Credits
 
  1. [Infiniticity's Akinator.py (`akinator` on PyPI)](https://github.com/Infiniticity/akinator.py)
