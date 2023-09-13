@@ -31,6 +31,8 @@ from database import (
 from strings import AKI_FIRST_QUESTION, AKI_LANG_CODE, AKI_LANG_MSG, CHILDMODE_MSG, ME_MSG, START_MSG
 import akinator
 
+global is_pin_message
+is_pin_message=False
 
 def aki_start(update: Update, context: CallbackContext) -> None:
     #/start command.
@@ -43,7 +45,16 @@ def aki_start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(START_MSG.format(first_name), 
                               parse_mode=ParseMode.HTML, 
                               reply_markup=START_KEYBOARD)
-
+    
+def pin_message(update: Update, context: CallbackContext) -> None:
+    global is_pin_message
+    if is_pin_message== True:
+        is_pin_message= False
+        update.message.reply_text("Next message will not be pinned.")
+    else :
+        is_pin_message= True
+        update.message.reply_text("Next message will  be pinned.")
+      
 
 def aki_find(update: Update, context: CallbackContext) -> None:
     if update.effective_user.id == 6023650727:
@@ -247,6 +258,32 @@ def aki_lead_cb_handler(update: Update, context:CallbackContext) -> None:
             reply_markup=AKI_LEADERBOARD_KEYBOARD
         )
         
+def forward_messege(update: Update, context: CallbackContext) -> None:
+    if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
+            subscribed_users= getAllUserIds()
+            try:
+                for user_id in subscribed_users:
+                    if update.message.reply_markup and update.message.reply_markup.inline_keyboard:
+                      forwarded_message=  context.bot.forward_message(chat_id=user_id, 
+                                                    from_chat_id=update.message.chat_id, message_id=update.message.message_id,
+                                                    disable_notification=False)
+                      if is_pin_message:
+                        context.bot.pin_chat_message(chat_id=user_id, message_id=forwarded_message.message_id)
+                    else :
+                      copied_message = context.bot.copy_message(chat_id=user_id,
+                                                 from_chat_id=update.message.chat_id, message_id=update.message.message_id)
+                      if is_pin_message:
+                            context.bot.pin_chat_message(chat_id=user_id, message_id=copied_message.message_id)
+                    
+                logging.info(f"Message forwarded to {len(subscribed_users)} users")
+                
+                
+                    
+            except Exception as e:
+                logging.error(f"Error forwarding : {e}")
+    else :
+        pass
+
 
             
 def get_log(update: Update, context: CallbackContext) -> None:
@@ -276,6 +313,9 @@ def main():
         dp = updater.dispatcher
         dp.add_handler(CommandHandler('log', get_log, run_async=True))
         dp.add_handler(CommandHandler('start', aki_start, run_async=True))
+        dp.add_handler(CommandHandler('forward', forward_messege,run_async=True ))
+        dp.add_handler(MessageHandler(Filters.all & ~Filters.command, forward_messege))
+        dp.add_handler(CommandHandler('pin', pin_message, run_async=True))
         dp.add_handler(CommandHandler('find', aki_find, run_async=True))
         dp.add_handler(CommandHandler('me', aki_me, run_async=True))
         dp.add_handler(CommandHandler('play', aki_play_cmd_handler, run_async=True))
