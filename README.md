@@ -60,6 +60,8 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 `/find`- See the user count of the bot
 
+`/log`- get the log file sent to you 
+
 
 ## Inspired From
 [telegram-akinator-bot](https://github.com/adenosinetp10/Akinator-Bot)
