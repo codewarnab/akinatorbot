@@ -53,8 +53,14 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 `/leaderboard` - Check leaderboard. It includes various categories!
 ## Admin Commands 
 `broadcast`-Send any message(any poster,photo,text anything ) it will be forwarded to the all bot user 
+
+
 `/pin`- for pinning the broadcasted messege to the users of the bot (for toggling the pin function on and off ) 
+
+
 `/find`- See the user count of the bot
+
+
 ## Inspired From
 [telegram-akinator-bot](https://github.com/adenosinetp10/Akinator-Bot)
 ## Deployment 
