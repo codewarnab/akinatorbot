@@ -1,9 +1,6 @@
-from pprint import pprint
 from typing import Any
 from pymongo import MongoClient
-from telegram import user
 from config import AKI_MONGO_HOST
-import itertools
 
 my_client = MongoClient(host=AKI_MONGO_HOST)
 my_db = my_client["aki-db"] #selecting the database
@@ -38,7 +35,91 @@ def addUser(user_id: int, first_name: str, last_name: str, user_name: str) -> No
     elif user["user_id"] == user_id:
         updateUser(user_id, first_name, last_name, user_name)
 
+def addgroup(chat_id:int,title:str,username:str) -> None:
+    my_col = my_db["groups"]
+    group = my_col.find_one({"chat_id":chat_id})
     
+    if group is None:
+        my_dict = {
+            "chat_id":chat_id,
+            "title":title,
+            "username":username,
+        }
+        my_col.insert_one(my_dict) 
+    elif group["chat_id"] == chat_id:
+        updategroup(chat_id,title,username)
+    
+
+
+def add_last_msg_id(user_id:int,last_msg_id:int,chat_id:int,current_msg_id:int) -> None:
+    my_col = my_db["last_msg_ids"]
+    data = my_col.find_one({"user_id":user_id})
+    
+    if data is None:
+        my_dict = {
+            "user_id":user_id,
+            "last_msg_id":last_msg_id,
+            "chat_id":chat_id,
+            "current_msg_id":current_msg_id
+        }
+        my_col.insert_one(my_dict)
+    elif data["user_id"] == user_id:
+        update_last_msg_id(user_id,last_msg_id,chat_id,current_msg_id)
+
+
+def update_last_msg_id(user_id:int,last_msg_id:int,chat_id:int,current_msg_id:int) -> None:
+    my_col = my_db["last_msg_ids"]
+    to_update = {
+        "last_msg_id":last_msg_id,
+        "chat_id":chat_id,
+        "current_msg_id":current_msg_id
+        
+    }
+    my_col.update_one({"user_id":user_id}, {"$set":to_update})
+
+
+
+
+
+def get_last_msg_id(user_id:int) -> int:
+    my_col = my_db["last_msg_ids"]
+    if my_col.find_one({"user_id":user_id}) is None:
+        return None
+    else :
+        return my_col.find_one({"user_id":user_id})["last_msg_id"]
+
+def get_chat_id(user_id: int, last_msg_id: int) -> int:
+    my_col = my_db["last_msg_ids"]
+    chat_info = my_col.find_one({"user_id": user_id, "last_msg_id": last_msg_id})
+    if chat_info is None:
+        return None
+    else:
+        return chat_info["chat_id"]
+
+
+def get_user_id(last_msg_id: int, chat_id: int) -> int:
+    my_col = my_db["last_msg_ids"]
+    user_info = my_col.find_one({"last_msg_id": last_msg_id, "chat_id": chat_id})
+    if user_info is None:
+        return None
+    else:
+        return user_info["user_id"]
+
+
+
+
+def updategroup(chat_id:int,title:str,username:str) -> None:
+    my_col = my_db["groups"]
+    to_update = {
+        "title":title,
+        "username":username,
+    }
+    my_col.update_one({"chat_id":chat_id}, {"$set":to_update})
+
+
+
+
+
 def totalUsers():
     my_col = my_db["users"]
     #Returns the total no.of users who has started the bot.
@@ -83,31 +164,23 @@ def getChildMode(user_id: int) -> int:
 
 
 def getTotalGuess(user_id: int) -> int:
-    """
     
-    """
     return my_db["users"].find_one({"user_id": user_id})["total_guess"]
 
 
 def getCorrectGuess(user_id: int) -> int:
-    """
     
-    """
     return my_db["users"].find_one({"user_id": user_id})["correct_guess"]
 
 
 
 def getWrongGuess(user_id: int) -> int:
-    """
     
-    """
     return my_db["users"].find_one({"user_id": user_id})["wrong_guess"]
 
 
 def getUnfinishedGuess(user_id: int) -> int:
-    """
     
-    """
     crct_wrong_guess = getCorrectGuess(user_id)+getWrongGuess(user_id)
     unfinished_guess = getTotalGuess(user_id)-crct_wrong_guess
     my_db["users"].update_one({"user_id": user_id}, {"$set": {"unfinished_guess": unfinished_guess}})
@@ -138,33 +211,25 @@ def updateChildMode(user_id: int, mode: int) -> None:
     my_db["users"].update_one({"user_id": user_id}, {"$set": {"child_mode": mode}})
 
 def updateTotalGuess(user_id: int, total_guess: int) -> None:
-    """
     
-    """
     total_guess = getTotalGuess(user_id)+total_guess
     my_db["users"].update_one({"user_id": user_id}, {"$set": {"total_guess": total_guess}})
 
 
 def updateCorrectGuess(user_id: int, correct_guess: int) -> None:
-    """
     
-    """
     correct_guess = getCorrectGuess(user_id)+correct_guess
     my_db["users"].update_one({"user_id": user_id}, {"$set": {"correct_guess": correct_guess}})
 
 
 def updateWrongGuess(user_id: int, wrong_guess: int) -> None:
-    """
-    
-    """
+
     wrong_guess = getWrongGuess(user_id)+wrong_guess
     my_db["users"].update_one({"user_id": user_id}, {"$set": {"wrong_guess": wrong_guess}})
     
 
 def updateTotalQuestions(user_id: int, total_questions: int) -> None:
-    """
     
-    """
     total_questions = total_questions+ getTotalQuestions(user_id)
     my_db["users"].update_one({"user_id": user_id}, {"$set": {"total_questions": total_questions}})
 
@@ -178,7 +243,6 @@ def getLead(what:str) -> list:
     lead_dict = sorted(lead_dict.items(), key=lambda x: x[1], reverse=True)
     return lead_dict[:10]
 
-# ... (your existing code above)
 
 def getAllUserIds():
     """
@@ -188,4 +252,11 @@ def getAllUserIds():
     user_ids = [user["user_id"] for user in my_col.find({}, {"user_id": 1})]
     return user_ids
 
-# ... (the rest of your existing code below)
+def getAllGroups():
+    my_col = my_db["groups"]
+    groups = [group["chat_id"] for group in my_col.find({}, {"chat_id": 1})]
+    return groups
+
+def gettitle(chat_id:int) -> str:
+    my_col = my_db["groups"]
+    return my_col.find_one({"chat_id":chat_id})["title"]

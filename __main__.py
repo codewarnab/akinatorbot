@@ -1,15 +1,30 @@
-import time 
+import akinator    
+import logging
+import json 
 from random import randint
-from akinator import Akinator
-from telegram import Update ,InputMediaPhoto
-from keyboard import AKI_LANG_BUTTON, AKI_LEADERBOARD_KEYBOARD, AKI_PLAY_KEYBOARD, AKI_WIN_BUTTON, CHILDMODE_BUTTON, START_KEYBOARD,SHARE_BUTTON
-from telegram.constants import ParseMode,ChatAction
-from telegram.ext import Application,CommandHandler
-from telegram.ext import  CommandHandler, CallbackContext, CallbackQueryHandler,filters, MessageHandler
 from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID
-import logging 
+from akinator import Akinator
+from telegram import Update ,InputMediaPhoto,error
+from telegram.constants import ParseMode,ChatAction
+from keyboard import (  AKI_LANG_BUTTON,
+                        AKI_LEADERBOARD_KEYBOARD,
+                        AKI_PLAY_KEYBOARD, 
+                        AKI_WIN_BUTTON, 
+                        CHILDMODE_BUTTON, 
+                        START_KEYBOARD,
+                        SHARE_BUTTON,
+                        START_KEYBOARD_GROUP,
+                        GUIDE_KEYBOARD
+                            )
+from telegram.ext import  (CommandHandler,
+                           CallbackContext,
+                           CallbackQueryHandler,
+                           PicklePersistence,
+                           Application,
+                           CommandHandler)
 from database import (
     addUser, 
+    addgroup,
     getChildMode, 
     getCorrectGuess, 
     getLanguage, 
@@ -25,51 +40,73 @@ from database import (
     updateTotalGuess, 
     updateTotalQuestions, 
     updateWrongGuess,
-    getAllUserIds)
+    getAllUserIds,
+    get_last_msg_id,
+    get_chat_id,
+    add_last_msg_id,
+    update_last_msg_id,
+    get_user_id,
+    getAllGroups,
+    gettitle
+    )
+from strings import  AKI_FIRST_QUESTION, AKI_LANG_CODE, AKI_LANG_MSG, CHILDMODE_MSG, ME_MSG, START_MSG, GROUP_LOADING_CAPTION_MSG,MENTION_USER,AKI_FIRST_IMG,AKI_DEFEATED_IMG,AKI_WIN_IMG,NONE_JPG,AKI_02,AKI_03,AKI_04,AKI_05,ERROR_IMG,PERMISSION_ISSUE
 
-from strings import AKI_FIRST_QUESTION, AKI_LANG_CODE, AKI_LANG_MSG, CHILDMODE_MSG, ME_MSG, START_MSG
-import akinator
+pic_list = [AKI_02,AKI_03,AKI_04,AKI_05]
 
-global is_pin_message
-is_pin_message=False
+
+
 async def aki_start(update: Update, context: CallbackContext) -> None:
     #/start command.
+    if update.effective_user.username == "GroupAnonymousBot":
+        await update.message.reply_text(
+            text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=GUIDE_KEYBOARD
+        )
+        return
     user_id = update.effective_user.id
+    chat_id = update.effective_chat.id 
     first_name = update.effective_user.first_name
     last_name = update.effective_user.last_name
     user_name = update.effective_user.username
+    type = update.effective_chat.type
     #Adding user to the database.
     addUser(user_id, first_name, last_name, user_name)
     await context.bot.send_chat_action(
-        chat_id=update.effective_user.id,
+        chat_id=chat_id,
         action=ChatAction.TYPING,
     )
-
+    
     await update.message.reply_text(START_MSG.format(first_name), 
                               parse_mode=ParseMode.HTML, 
-                              reply_markup=START_KEYBOARD)
+                              reply_markup=START_KEYBOARD if type == "private" else START_KEYBOARD_GROUP)
+    if type !="private":
+        addgroup(chat_id, update.effective_chat.title,user_name)
+        
+def generate_random_img():
+    '''Generate random image for Akinator'''
+    return pic_list[randint(0,3)]
+
 
 async def aki_find(update: Update, context: CallbackContext) -> None:
-    if update.effective_user.id == 6023650727:
+    '''Find the number of user.'''
+    if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
         total_users = totalUsers()
-        await update.message.reply_text(f"Users : {total_users}")
-    else:
-        pass
+        await update.message.reply_text(f"Total Users👤 : {total_users}")
 
-
-async def pin_message(update: Update, context: CallbackContext) -> None:
-    global is_pin_message
-    if is_pin_message== True:
-        is_pin_message= False
-        await update.message.reply_text("Next message will not be pinned.")
-    else :
-        is_pin_message= True
-        await update.message.reply_text("Next message will  be pinned.")
 
 
 async def aki_me(update: Update, context: CallbackContext) -> None:
     #/me command
+    if update.effective_user.username == "GroupAnonymousBot":
+        await update.message.reply_text(
+            text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=GUIDE_KEYBOARD
+        )
+        return
     user_id = update.effective_user.id
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     profile_pic =( await  update.effective_user.get_profile_photos(limit=1)).photos
     if len(profile_pic) == 0:
         profile_pic = "https://telegra.ph/file/a65ee7219e14f0d0225a9.png"
@@ -77,10 +114,11 @@ async def aki_me(update: Update, context: CallbackContext) -> None:
         profile_pic = profile_pic[0][1]
     user = getUser(user_id)
     await context.bot.send_chat_action(
-        chat_id=update.effective_user.id,
+        chat_id=update._effective_chat.id,
         action=ChatAction.UPLOAD_PHOTO,
     )
-    await update.message.reply_photo(photo= profile_pic, 
+    try:
+        await update.message.reply_photo(photo= profile_pic, 
                                caption=ME_MSG.format(user["first_name"], 
                                                      user["user_name"], 
                                                      user["user_id"],
@@ -93,15 +131,45 @@ async def aki_me(update: Update, context: CallbackContext) -> None:
                                                      getTotalQuestions(user_id),
                                                      ),
                                parse_mode=ParseMode.HTML)
-
+    except error.BadRequest as e:
+            await  update.message.reply_text( text= PERMISSION_ISSUE,
+                                            parse_mode=ParseMode.MARKDOWN,
+                                            reply_markup=GUIDE_KEYBOARD
+            )
+            logging.error(f"Error : {e}")
+    
+    
+    
 async def aki_lang(update: Update, context: CallbackContext) -> None:
+    """
+    This function is used to handle the user's language preference for the Akinator game.
+    It takes in an Update object and a CallbackContext object as parameters.
+    It retrieves the user's preferred language and sends a message with language options.
+    """
+    if update.effective_user.username == "GroupAnonymousBot":
+        await update.message.reply_text(
+            text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=GUIDE_KEYBOARD
+        )
+        return
     user_id = update.effective_user.id
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     await update.message.reply_text(AKI_LANG_MSG.format(AKI_LANG_CODE[getLanguage(user_id)]),
                                 parse_mode=ParseMode.HTML,
                                 reply_markup=AKI_LANG_BUTTON)
 
 async def aki_childmode(update: Update, context: CallbackContext) -> None:
+    '''This function is used to handle the user's child mode preference for the Akinator game.'''
+    if update.effective_user.username == "GroupAnonymousBot":
+        await update.message.reply_text(
+            text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=GUIDE_KEYBOARD
+        )
+        return
     user_id =  update.effective_user.id
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     status = "enabled" if getChildMode(user_id) else "disabled"
     await update.message.reply_text(
         text=CHILDMODE_MSG.format(status),
@@ -110,6 +178,7 @@ async def aki_childmode(update: Update, context: CallbackContext) -> None:
     )
 
 async def aki_set_child_mode(update: Update, context: CallbackContext) -> None:
+    '''This function is used to set the user's child mode preference for the Akinator game.'''
     user_id = update.effective_user.id
     query = update.callback_query
     to_set = int(query.data.split('_')[-1])
@@ -118,51 +187,104 @@ async def aki_set_child_mode(update: Update, context: CallbackContext) -> None:
     
 
 async def aki_set_lang(update: Update, context: CallbackContext) -> None:
+    '''This function is used to set the user's language preference for the Akinator game.'''
     query = update.callback_query
     lang_code = query.data.split('_')[-1]
     user_id = update.effective_user.id
     updateLanguage(user_id, lang_code)
     query.edit_message_text(f"Language Successfully changed to {AKI_LANG_CODE[lang_code]} !")
+    
 async def aki_play_cmd_handler(update: Update, context: CallbackContext) -> None:
+    '''This function is used to handle the /play command.'''
 
     #/play command.
-
+    if update.effective_user.username == "GroupAnonymousBot":
+        await update.message.reply_text(
+            text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=GUIDE_KEYBOARD
+        )
+        return
+    first_name = update.effective_user.first_name
     user_id = update.effective_user.id
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     aki = Akinator()
-    await context.bot.send_chat_action(
-        chat_id=update.effective_user.id,
-        action=ChatAction.UPLOAD_PHOTO,
-    )
-    msg = await update.message.reply_photo(
-        photo=open('aki_pics/aki_01.png', 'rb'),
-        caption="Loading..."
-    )
+    try:
+        await context.bot.send_chat_action(
+            chat_id=update._effective_chat.id,
+            action=ChatAction.UPLOAD_PHOTO,
+        )
+    except error.BadRequest as e:
+        logging.error(f"Error : {e}")
     
-    
+    caption = "Loading..." if update.effective_chat.type == "private" else GROUP_LOADING_CAPTION_MSG.format(first_name, user_id)
+    parse_mode = ParseMode.MARKDOWN if not update.effective_chat.type == "private" else None
+
+    try:
+        msg = await update.message.reply_photo(
+        photo=AKI_FIRST_IMG,
+        caption=caption,
+        parse_mode=parse_mode
+        )
+    except error.BadRequest as e:
+        msg = await update.message.reply_text(
+        text=PERMISSION_ISSUE,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=GUIDE_KEYBOARD
+    )
+        logging.error(f"Error: {e}")
+
+    if get_last_msg_id(user_id) is not None:
+        try:
+            last_message_id =get_last_msg_id(user_id)
+            await context.bot.delete_message(chat_id=get_chat_id(user_id, last_message_id), message_id=last_message_id)
+        except error.ChatMigrated as e:
+            pass
+        except error.BadRequest as e:
+            logging.error(f"Error : {e}")
+        update_last_msg_id(user_id, msg.id, update.effective_chat.id,msg.id)
+        
+    else :
+        add_last_msg_id(user_id, msg.id, update.effective_chat.id,msg.id)
+        
+
     updateTotalGuess(user_id, total_guess=1)
     q = aki.start_game(language=getLanguage(user_id), child_mode=getChildMode(user_id))
-
-    context.user_data[f"aki_{user_id}"] = aki #context.user_data[f"aki_{user_id}"] appears to store the Akinator instance (aki) so that it can be accessed later in the conversation. 
+    context.user_data[f"aki_{user_id}"] = aki
+    
+    #context.user_data[f"aki_{user_id}"]  to store the Akinator instance (aki) so that it can be accessed later in the conversation. 
+    
     context.user_data[f"q_{user_id}"] = q
+    
     #context.user_data[f"q_{user_id}"] stores the current question (q) being asked in the game.
     context.user_data[f"ques_{user_id}"] = 1
-    #context.user_data[f"ques_{user_id}"] seems to keep track of the question number, starting from 1.
-
-    await msg.edit_caption(
-        caption=q,
-        reply_markup=AKI_PLAY_KEYBOARD
-        )
+    
+    #context.user_data[f"ques_{user_id}"]  to keep track of the question number, starting from 1.
+    try:
+        caption = q if update.effective_chat.type == "private" else MENTION_USER.format(first_name, user_id, q)
+        await msg.edit_caption(
+        caption=caption,
+        reply_markup=AKI_PLAY_KEYBOARD,
+        parse_mode=ParseMode.MARKDOWN
+     )
+    except error.BadRequest as e:
+        logging.error(f"Error: {e}")
 
 async def aki_lead(update: Update, _:CallbackContext) -> None:
-    if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
+    if update.effective_user.username == "GroupAnonymousBot":
         await update.message.reply_text(
+            text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=GUIDE_KEYBOARD
+        )
+        return
+    await update.message.reply_text(
             text="Check Leaderboard on specific categories in Akinator.",
             reply_markup=AKI_LEADERBOARD_KEYBOARD
         )
-    else:
-        pass
 
 async def get_lead_total(lead_list: list, lead_category: str) -> str:
+
     lead = f'Top 10 {lead_category} are :\n'
     for i in lead_list:
         lead = lead+f"{i[0]} : {i[1]}\n"
@@ -175,46 +297,100 @@ async def del_data(context:CallbackContext, user_id: int):
 
 
 async def aki_play_callback_handler(update: Update, context:CallbackContext) -> None:
-    user_id = update.effective_user.id
-    aki = context.user_data[f"aki_{user_id}"]
-    q = context.user_data[f"q_{user_id}"]
-    updateTotalQuestions(user_id, 1)
-    query = update.callback_query
-    a = query.data.split('_')[-1]
-    if a == '5':
-        updateTotalQuestions(user_id, -1)
-        try:
-            q = aki.back()
-        except akinator.exceptions.CantGoBackAnyFurther:
-            await query.answer(text=AKI_FIRST_QUESTION, show_alert=True)
-            return
-    else:
-        q = aki.answer(a) #this returns the next question 
-        
-    query.answer()
-    if aki.progression < 80:
-        await query.message.edit_media(
-            InputMediaPhoto(
-                open(f'aki_pics/aki_0{randint(1,5)}.png', 'rb'),
-                caption=q,
-            ),
-            reply_markup=AKI_PLAY_KEYBOARD
-        )
-        context.user_data[f"aki_{user_id}"] = aki
-        context.user_data[f"q_{user_id}"] = q
-    else:
-        aki.win()
-        aki = aki.first_guess
-        if aki['picture_path'] == 'none.jpg':
-            aki['absolute_picture_path'] = open('aki_pics/none.jpg', 'rb')
-        await query.message.edit_media(
-            InputMediaPhoto(media=aki['absolute_picture_path'],
-            caption=f"It's {aki['name']} ({aki['description']})! Was I correct?"
-            ),
-            reply_markup=AKI_WIN_BUTTON
-        )
-        del_data(context, user_id)
+        user_id = update.effective_user.id
+        chat_id= update.effective_chat.id
+        query = update.callback_query 
+        type = update.effective_chat.type
+        msg_id = query.message.id 
+        if get_user_id(msg_id,chat_id)==query.from_user.id:
+            try :
+                aki = context.user_data[f"aki_{user_id}"]
+                q = context.user_data[f"q_{user_id}"]
+                updateTotalQuestions(user_id, 1)
+                a = query.data.split('_')[-1]
+                if a == '5':
+                    updateTotalQuestions(user_id, -1)
+                    try:
+                        q = aki.back()
+                    except akinator.exceptions.CantGoBackAnyFurther:
+                        await query.answer(text=AKI_FIRST_QUESTION, show_alert=True)
+                        return
+                else:
+                    try :
+                        q = aki.answer(a) #this returns the next question 
+                    except akinator.exceptions.AkiTimedOut:
+                        await query.answer(text="you took too long to answer the question. /play again",show_alert=True)
+                        try:
+                            await query.delete_message()
+                        except error.BadRequest as e:
+                            logging.error(f"Error : {e}")
 
+                query.answer()
+                if aki.progression < 85:
+                    
+                    try:
+                        caption = q if type == "private" else MENTION_USER.format(update.effective_user.first_name, user_id, q)
+    
+                        await query.message.edit_media(
+                         InputMediaPhoto(
+                            media=generate_random_img(),
+                            caption=caption,
+                            parse_mode=ParseMode.MARKDOWN
+                                ),
+                            reply_markup=AKI_PLAY_KEYBOARD
+                             )
+                    except error.BadRequest as e:
+                        logging.error(f"Error: {e}")
+
+                    context.user_data[f"aki_{user_id}"] = aki
+                    context.user_data[f"q_{user_id}"] = q
+                else:
+                    aki.win()
+                    aki = aki.first_guess
+                    if aki['picture_path'] == 'none.jpg':
+                        aki['absolute_picture_path'] = NONE_JPG
+                    await query.message.edit_media(
+                        InputMediaPhoto(media=aki['absolute_picture_path'],
+                        caption=f"It's {aki['name']} ({aki['description']})! Was I correct?"
+                        ),
+                        reply_markup=AKI_WIN_BUTTON
+                    )
+                    del_data(context, user_id)
+            except akinator.exceptions.AkiServerDown:
+                    await query.answer(text="Aki server is down currenlty try again later",show_alert=True)
+                    try:
+                            await query.delete_message()
+                    except error.BadRequest as e:
+                            logging.error(f"Error : {e}")
+            except akinator.exceptions.AkiTechnicalError:
+                    await query.answer(text="Aki server is down currenlty try again later",show_alert=True)
+                    await query.delete_message()
+            except akinator.exceptions.AkiTimedOut:
+                    await query.answer(text="you took too long to answer the question. /play again",show_alert=True)
+                    try:
+                            await query.delete_message()
+                    except error.BadRequest as e:
+                            logging.error(f"Error : {e}")
+            except json.JSONDecodeError as e:
+                    await query.answer(text = "Something went wrong, please start a new game",show_alert=True)
+                    try:
+                            await query.delete_message()
+                    except error.BadRequest as e:
+                            logging.error(f"Error : {e}")
+            except akinator.exceptions.AkiNoQuestions:
+                    await query.answer(text="Akinator run out of question 😵‍💫 , please go back and answer them correctly",show_alert=True)
+                    return
+            except akinator.exceptions.InvalidAnswerError:
+                    await query.answer(text="Invalid answer, please try again or start a new game ",show_alert=True)
+            except akinator.exceptions.AkiConnectionFailure:
+                    await query.answer(text="you took too long to answer the question. /play again",show_alert=True)
+                    try:
+                            await query.delete_message()
+                    except error.BadRequest as e:
+                            logging.error(f"Error : {e}")
+        else :
+             await query.answer(text= "This is not meant for you 😉",show_alert=True)
+            
 async def get_log(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
     if user_id == ADMIN_TELEGRAM_USER_ID:
@@ -232,13 +408,8 @@ async def get_log(update: Update, context: CallbackContext) -> None:
 async def aki_lead_cb_handler(update: Update, context:CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    # print(query.data)
     data = query.data.split('_')[-1]
-    # print(data)
-    await context.bot.send_chat_action(
-        chat_id=update.effective_user.id,
-        action=ChatAction.TYPING,
-    )
+    
     if data == 'cguess':
         text =await  get_lead_total(getLead("correct_guess"), 'correct guesses')
         await query.edit_message_text(
@@ -268,11 +439,12 @@ async def aki_win(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     query = update.callback_query
     ans = query.data.split('_')[-1]
+
     if ans =='y':
         await query.message.edit_media(
             InputMediaPhoto(
-                media=open('aki_pics/aki_win.png', 'rb'),
-                caption="gg!"
+                media=AKI_WIN_IMG,
+                caption="gg! lets /play again 😍 "
             ),
             reply_markup=SHARE_BUTTON
         )
@@ -280,44 +452,34 @@ async def aki_win(update: Update, context: CallbackContext):
     else:
         await query.message.edit_media(
             InputMediaPhoto(
-                media=open('aki_pics/aki_defeat.png', 'rb'),
+                media=AKI_DEFEATED_IMG,
                 caption="bruh :("
             ),
             reply_markup=None
         )
         updateWrongGuess(user_id=user_id, wrong_guess=1)
-
-
-async def forward_messege(update: Update, context: CallbackContext) -> None:
+            
+            
+async def total_members(update: Update, context: CallbackContext) -> None:
     if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
-            subscribed_users= getAllUserIds()
-            try:
-                i = 0
-                for user_id in subscribed_users:
-                    i+=1
-                    if i%30 == 0:
-                        time.sleep(1)
-                    else :
-                        if update.message.reply_markup and update.message.reply_markup.inline_keyboard:
-                            forwarded_message=  await  context.bot.forward_message(chat_id=user_id, 
-                                                    from_chat_id=update.message.chat_id, message_id=update.message.message_id,
-                                                    disable_notification=False)
-                            if is_pin_message:
-                                await context.bot.pin_chat_message(chat_id=user_id, message_id=forwarded_message.message_id)
-                        else :
-                            copied_message = await context.bot.copy_message(chat_id=user_id,
-                                                 from_chat_id=update.message.chat_id, message_id=update.message.message_id)
-                            if is_pin_message:
-                                     await context.bot.pin_chat_message(chat_id=user_id, message_id=copied_message.message_id)
-                    logging.info(f"Message forwarded to {len(subscribed_users)} users")
-            except Exception as e:
-                logging.error(f"Error forwarding : {e}")
-    else :
-        await update.message.reply_text("send /play for playing Akinator")
-            
-            
+        total_members = 0
+        message_text = ""
+        all_group_chat_id = getAllGroups()
 
-
+        for chat_id in all_group_chat_id:
+            try :
+                number = await context.bot.get_chat_member_count(chat_id)
+                title = gettitle(chat_id)
+                message_text += f"Group Name: {title}\nGroup Members👤: {number}\n"
+                total_members+=number
+            except error.ChatMigrated as e:
+                addgroup(e.new_chat_id, title, None)
+                logging.error(f"Error : {e}")
+            except error.Forbidden as e:
+                logging.error(f"Error : {e}")
+            except error.BadRequest as e :
+                logging.error(f"Error : {e}")
+        await context.bot.send_message(chat_id=ADMIN_TELEGRAM_USER_ID, text=f'{message_text}\nTotal members👤 : {total_members}')
 
 
 def main():
@@ -329,30 +491,36 @@ def main():
         
     )
     try :
-        
-        application = Application.builder().token(BOT_TOKEN).build()
+        persistence = PicklePersistence(filepath='akinatorbot')
+        application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
         application.add_handler(CommandHandler("start", aki_start))
-        application.add_handler(CommandHandler("find", aki_find))
+        application.add_handler(CommandHandler("find", aki_find))#admin command
         application.add_handler(CommandHandler("me", aki_me))
         application.add_handler(CommandHandler('language', aki_lang))
         application.add_handler(CommandHandler('childmode', aki_childmode))
         application.add_handler(CommandHandler('play', aki_play_cmd_handler))
         application.add_handler(CommandHandler('leaderboard', aki_lead))
-        application.add_handler(CommandHandler('log', get_log))
+        application.add_handler(CommandHandler('log', get_log)) #admin command
         application.add_handler(CommandHandler('me', aki_me))
-        application.add_handler(CommandHandler('pin', pin_message))
-        
-        application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, forward_messege))
-        
+        application.add_handler(CommandHandler('total', total_members)) #admin command
+
+
         application.add_handler(CallbackQueryHandler(aki_win, pattern=r"aki_win_"))
         application.add_handler(CallbackQueryHandler(aki_play_callback_handler, pattern=r"aki_play_"))
         application.add_handler(CallbackQueryHandler(aki_set_child_mode, pattern=r"c_mode_"))
         application.add_handler(CallbackQueryHandler(aki_set_lang, pattern=r"aki_set_lang_"))
         application.add_handler(CallbackQueryHandler(aki_lead_cb_handler, pattern=r"aki_lead_"))
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
         
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    except error.NetworkError as e:
+        pass
+    
     except Exception as e:
         logging.info(f"Error : {e}")
 
+
 if __name__ == '__main__':
     main()
+    
+    

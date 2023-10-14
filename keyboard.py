@@ -1,11 +1,36 @@
-from strings import AKI_LANG_CODE, DEV_URL, GITHUB_URL
+from strings import AKI_LANG_CODE, DEV_URL
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+
+START_KEYBOARD_GROUP = InlineKeyboardMarkup(
+    [
+        [
+
+            InlineKeyboardButton('DEVELOPER👩‍💻', DEV_URL)
+        ]
+    ]
+)
+
+GUIDE_KEYBOARD = InlineKeyboardMarkup(
+    [
+        [
+
+            InlineKeyboardButton('USER GUIDE📖', url="https://telegra.ph/Akinator-Telegram-bot-10-08"),
+            InlineKeyboardButton('DEVELOPER👩‍💻', DEV_URL)
+        ]
+    ]
+)
+
 
 START_KEYBOARD = InlineKeyboardMarkup(
     [
         [
-            # InlineKeyboardButton('Github', GITHUB_URL),
-            InlineKeyboardButton('Maintainer', DEV_URL)   
+
+            InlineKeyboardButton('DEVELOPER👩‍💻', DEV_URL)],
+        [
+            InlineKeyboardButton("Add me to group ➕", url="http://t.me/Akinatorq_bot?startgroup=botstart"),
+             InlineKeyboardButton('USER GUIDE📖', url="https://telegra.ph/Akinator-Telegram-bot-10-08")
+               
         ]
     ]
 )
@@ -45,8 +70,8 @@ AKI_LANG_BUTTON = InlineKeyboardMarkup(
 CHILDMODE_BUTTON = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Enable", callback_data='c_mode_1'),
-            InlineKeyboardButton("Disable", callback_data='c_mode_0')
+            InlineKeyboardButton("Enable🔒", callback_data='c_mode_1'),
+            InlineKeyboardButton("Disable🚫", callback_data='c_mode_0')
         ]
     ]
 )
@@ -55,7 +80,8 @@ CHILDMODE_BUTTON = InlineKeyboardMarkup(
 SHARE_BUTTON = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Share", url="https://telegram.me/share/url?url=https://t.me/Akinatorq_bot")
+            InlineKeyboardButton("Share📣", url="https://telegram.me/share/url?url=https://t.me/Akinatorq_bot"),
+            InlineKeyboardButton("Add me to group ➕", url="http://t.me/Akinatorq_bot?startgroup=botstart")
         ]
     ]
 )
@@ -64,24 +90,31 @@ SHARE_BUTTON = InlineKeyboardMarkup(
 AKI_PLAY_KEYBOARD = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Yes", callback_data='aki_play_0'),
-            InlineKeyboardButton("No", callback_data='aki_play_1'),
-            InlineKeyboardButton("Probably", callback_data='aki_play_3')
+            InlineKeyboardButton("Yes 👍", callback_data='aki_play_0'),
+            InlineKeyboardButton("No 👎", callback_data='aki_play_1'),
+            
         ],
         [
-            InlineKeyboardButton("I don't know", callback_data='aki_play_2'),
-            InlineKeyboardButton("Probably Not", callback_data='aki_play_4')
+            InlineKeyboardButton("Probably🤔 ", callback_data='aki_play_3'),
+            InlineKeyboardButton("Probably Not❌", callback_data='aki_play_4')
         ],
-        [   InlineKeyboardButton("Back", callback_data= 'aki_play_5')
+        [
+            InlineKeyboardButton("I don't know🤷‍♂️", callback_data='aki_play_2'),
+
+        ],
+        
+        [   InlineKeyboardButton("Back↩️", callback_data= 'aki_play_5')
         ]
     ]
 )
 
+
+
 AKI_WIN_BUTTON = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Yes", callback_data='aki_win_y'),
-            InlineKeyboardButton("No", callback_data='aki_win_n'),
+            InlineKeyboardButton("Yes👍", callback_data='aki_win_y'),
+            InlineKeyboardButton("No 👎", callback_data='aki_win_n'),
         ]
     ]
 )
@@ -90,12 +123,12 @@ AKI_WIN_BUTTON = InlineKeyboardMarkup(
 AKI_LEADERBOARD_KEYBOARD = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Total Guesses", callback_data='aki_lead_tguess'),
-            InlineKeyboardButton("Correct Guesses", callback_data='aki_lead_cguess'),
+            InlineKeyboardButton("Total Guesses👀", callback_data='aki_lead_tguess'),
+            InlineKeyboardButton("Correct Guesses✅", callback_data='aki_lead_cguess'),
         ],
         [
-            InlineKeyboardButton("Wrong Guesses", callback_data='aki_lead_wguess'),
-            InlineKeyboardButton("Total Questions", callback_data='aki_lead_tquestions'),
+            InlineKeyboardButton("Wrong Guesses❌", callback_data='aki_lead_wguess'),
+            InlineKeyboardButton("Total Questions❓", callback_data='aki_lead_tquestions'),
         ]
     ]
 )

@@ -52,13 +52,10 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 `/leaderboard` - Check leaderboard. It includes various categories!
 ## Admin Commands 
-`broadcast`-Send any message(any poster,photo,text anything ) it will be forwarded to the all bot user 
 
+`/find`- See the user count of the bot\
 
-`/pin`- for pinning the broadcasted messege to the users of the bot (for toggling the pin function on and off ) 
-
-
-`/find`- See the user count of the bot
+`/total`- Get the name of the group and member count where bot is added 
 
 `/log`- get the log file sent to you 
 
@@ -75,6 +72,7 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 ## Credits
 
- 1. [Infiniticity's Akinator.py (`akinator` on PyPI)](https://github.com/Infiniticity/akinator.py)
- 2. [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
+ 1. Original source code is taken from  [Telegram Akinator Bot](https://github.com/adenosinetp10/Akinator-Bot)
+ 2. [Infiniticity's Akinator.py (`akinator` on PyPI)](https://github.com/Infiniticity/akinator.py)
+ 3. [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
  
