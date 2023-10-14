@@ -68,7 +68,6 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
  
  3 . learn how to deploy python script in gcloud [here](https://youtu.be/lEKp2O7MTfY?si=p2VYayICKKIxieKq)
  
-4 . if you want to host your python script in my gcloud conatct [me](https://telegram.me/blacknut1803)
 
 ## Credits
 
