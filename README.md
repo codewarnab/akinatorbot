@@ -53,7 +53,7 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 `/leaderboard` - Check leaderboard. It includes various categories!
 ## Admin Commands 
 
-`/find`- See the user count of the bot\
+`/find`- See the user count of the bot
 
 `/total`- Get the name of the group and member count where bot is added 
 
