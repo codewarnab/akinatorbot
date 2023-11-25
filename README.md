@@ -22,7 +22,7 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 4) Now click on the cluster name which will take you to the Overview page.
 
-5) Click `Collections` and create a database called `aki-db`. Inside `aki-db` create a collection called `users`
+5) Click `Collections` and create a database called `aki-db`. Inside `aki-db` create a collections called `users`,`groups`,`last_msg_ids` .
 
 6) Now on the left side, under the `Security` click the `Database Access` and add a user. Don't forget to note down the username and password!
 
