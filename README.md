@@ -2,6 +2,7 @@
 A Telegram bot where you can play the Akinator Guessing game
 check out [Akinator](https://telegram.me/Akinatorq_bot) on Telegram.
 If the bot is offline, contact [me](https://telegram.me/blacknut1803) on telegram, so that I can look into it.
+current users : 350 [25-11-2023]
 
 
 
