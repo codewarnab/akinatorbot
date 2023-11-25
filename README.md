@@ -72,7 +72,7 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 ## Credits
 
- 1. Original source code is taken from  [Telegram Akinator Bot](https://github.com/adenosinetp10/Akinator-Bot)
- 2. [Infiniticity's Akinator.py (`akinator` on PyPI)](https://github.com/Infiniticity/akinator.py)
- 3. [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
+ 1. Original source code is taken from  [Telegram Akinator Bot](https://github.com/adenosinetp10/Akinator-Bot) ( i am aslo a conrtributor there )
+ 3. [Infiniticity's Akinator.py (`akinator` on PyPI)](https://github.com/Infiniticity/akinator.py)
+ 4. [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
  
