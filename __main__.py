@@ -469,6 +469,7 @@ async def aki_win(update: Update, context: CallbackContext):
             
             
 async def total_members(update: Update, context: CallbackContext) -> None:
+    # for getting the details of the groups where bot is added 
     if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
         total_members = 0
         message_text = ""
@@ -494,9 +495,11 @@ async def total_members(update: Update, context: CallbackContext) -> None:
 
 
 async def broadcastChat(update: Update, context: CallbackContext) -> None:
+    #for broadcasting message to all user and chatting with users 
     is_broadcast_message = False 
     if update.effective_chat.type =="private":
         if  update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
+            #it will broadcast any message containing "#broadcast" in it 
             if update.message.text:
                 if "#broadcast" in update.message.text:
                     is_broadcast_message = True
@@ -536,6 +539,8 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
                         
                 logging.critical(f"Success: {success_count} Failed: {fail_count}. EXCEPTIONS{exceptions}")
             else:
+                
+                #for chatting with the user 
                 if update.effective_chat.id == ADMIN_TELEGRAM_USER_ID and update.message.reply_to_message!= None:
                     message_id,user_id=find_user_message_data(update.message.reply_to_message.message_id)
                     reply_markup = update.message.reply_markup

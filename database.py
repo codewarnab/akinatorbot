@@ -262,6 +262,11 @@ def gettitle(chat_id:int) -> str:
     return my_col.find_one({"chat_id":chat_id})["title"]
 
 def add_user_message_data(message_id_in_admin_chat:int ,message_id_in_user_chat:int,user_id:int):
+    """stores the data of the user message for replying to it later 
+
+    Args:
+        message_id_in_admin_chat (int): message id of the message which is forwarded from the user by the bot to admin 
+    """
     my_col = my_db["user_chatting_data"]
     data = my_col.find_one(
         {"message_id_in_admin_chat": message_id_in_admin_chat})
@@ -274,6 +279,15 @@ def add_user_message_data(message_id_in_admin_chat:int ,message_id_in_user_chat:
         }
         my_col.insert_one(my_dict)
 def find_user_message_data(message_id_in_admin_chat:int):
+    """retrives the message_id and user id using the message_id of the forwaerded message used for replying to the message 
+
+    Args:
+        message_id_in_admin_chat (int): message id of the message which is forwarded from the user by the bot to admin 
+
+    Returns:
+        user_id: int
+        message_id:int
+    """
     my_col = my_col = my_db["user_chatting_data"]
     data = my_col.find_one({"message_id_in_admin_chat": message_id_in_admin_chat})
 
