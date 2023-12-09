@@ -1,6 +1,7 @@
 import akinator    
 import logging
 import json 
+import time
 from random import randint
 from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID
 from akinator import Akinator
@@ -21,7 +22,9 @@ from telegram.ext import  (CommandHandler,
                            CallbackQueryHandler,
                            PicklePersistence,
                            Application,
-                           CommandHandler)
+                           CommandHandler,
+                           MessageHandler,
+                           filters)
 from database import (
     addUser, 
     addgroup,
@@ -47,16 +50,19 @@ from database import (
     update_last_msg_id,
     get_user_id,
     getAllGroups,
-    gettitle
+    gettitle,
+    add_user_message_data,
+    find_user_message_data
+    
     )
-from strings import  AKI_FIRST_QUESTION, AKI_LANG_CODE, AKI_LANG_MSG, CHILDMODE_MSG, ME_MSG, START_MSG, GROUP_LOADING_CAPTION_MSG,MENTION_USER,AKI_FIRST_IMG,AKI_DEFEATED_IMG,AKI_WIN_IMG,NONE_JPG,AKI_02,AKI_03,AKI_04,AKI_05,ERROR_IMG,PERMISSION_ISSUE
+from strings import  AKI_FIRST_QUESTION, AKI_LANG_CODE, AKI_LANG_MSG, CHILDMODE_MSG, ME_MSG, START_MSG, GROUP_LOADING_CAPTION_MSG,MENTION_USER,AKI_FIRST_IMG,AKI_DEFEATED_IMG,AKI_WIN_IMG,NONE_JPG,AKI_02,AKI_03,AKI_04,AKI_05,ERROR_IMG,PERMISSION_ISSUE,SURETY
 
 pic_list = [AKI_02,AKI_03,AKI_04,AKI_05]
 
 
 
 async def aki_start(update: Update, context: CallbackContext) -> None:
-    #/start command.
+    # Handles the /start command.
     if update.effective_user.username == "GroupAnonymousBot":
         await update.message.reply_text(
             text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
@@ -97,7 +103,7 @@ async def aki_find(update: Update, context: CallbackContext) -> None:
 
 
 async def aki_me(update: Update, context: CallbackContext) -> None:
-    #/me command
+    #Handles the /me command
     if update.effective_user.username == "GroupAnonymousBot":
         await update.message.reply_text(
             text="Sorry *Anoynomous* players are not allowed to play Akinator.🤫",
@@ -297,6 +303,7 @@ async def del_data(context:CallbackContext, user_id: int):
 
 
 async def aki_play_callback_handler(update: Update, context:CallbackContext) -> None:
+        #Handles the inline buttons of /play command 
         user_id = update.effective_user.id
         chat_id= update.effective_chat.id
         query = update.callback_query 
@@ -327,14 +334,15 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
 
                 query.answer()
                 if aki.progression < 85:
-                    
+                    v= aki.progression+15
+                    v= round(v,2)
                     try:
                         caption = q if type == "private" else MENTION_USER.format(update.effective_user.first_name, user_id, q)
     
                         await query.message.edit_media(
                          InputMediaPhoto(
                             media=generate_random_img(),
-                            caption=caption,
+                            caption=caption+"\n"+SURETY.format(v),
                             parse_mode=ParseMode.MARKDOWN
                                 ),
                             reply_markup=AKI_PLAY_KEYBOARD
@@ -473,14 +481,76 @@ async def total_members(update: Update, context: CallbackContext) -> None:
                 message_text += f"Group Name: {title}\nGroup Members👤: {number}\n"
                 total_members+=number
             except error.ChatMigrated as e:
-                addgroup(e.new_chat_id, title, None)
+                addgroup(e.new_chat_id, update.effective_chat.title, None)
                 logging.error(f"Error : {e}")
+                continue
             except error.Forbidden as e:
                 logging.error(f"Error : {e}")
+                continue
             except error.BadRequest as e :
                 logging.error(f"Error : {e}")
+                continue
         await context.bot.send_message(chat_id=ADMIN_TELEGRAM_USER_ID, text=f'{message_text}\nTotal members👤 : {total_members}')
 
+
+async def broadcastChat(update: Update, context: CallbackContext) -> None:
+    is_broadcast_message = False 
+    if update.effective_chat.type =="private":
+        if  update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
+            if update.message.text:
+                if "#broadcast" in update.message.text:
+                    is_broadcast_message = True
+            elif update.message.caption:
+                if "#broadcast" in update.message.caption:
+                    is_broadcast_message =True
+
+            if is_broadcast_message :
+                print("triggerd")
+                success_count = 0
+                fail_count = 0
+                exceptions = []
+                subscribed_users= getAllUserIds()
+                for user_id in subscribed_users:
+                        try:
+                            if update.message.reply_markup and update.message.reply_markup.inline_keyboard:
+                                await  context.bot.forward_message(chat_id=user_id, 
+                                                            from_chat_id=update.message.chat_id, message_id=update.message.message_id,
+                                                            disable_notification=False)
+                                success_count += 1
+                            else :
+                                await context.bot.copy_message(chat_id=user_id,
+                                                        from_chat_id=update.message.chat_id, message_id=update.message.message_id)
+                                success_count += 1
+                        except error.BadRequest:
+                            exceptions.append(f"{user_id}: user not found")
+                            fail_count += 1
+                            continue
+                        except error.Forbidden:
+                            exceptions.append(f"{user_id}: User has blocked the bot.")
+                            fail_count += 1
+                            continue
+                            
+                        except error.RetryAfter as e:
+                            time.sleep(e.retry_after)  # Wait for the recommended time before retrying
+                            continue
+                        except error as e:
+                            exceptions.append(f"{user_id}: {str(e)}")
+                            fail_count += 1
+                            continue  # Continue to the next user if fails
+                        
+                logging.critical(f"Success: {success_count} Failed: {fail_count}. EXCEPTIONS{exceptions}")
+            else:
+                if update.effective_chat.id == ADMIN_TELEGRAM_USER_ID and update.message.reply_to_message!= None:
+                    message_id,user_id=find_user_message_data(update.message.reply_to_message.message_id)
+                    await context.bot.send_message(chat_id=user_id,text=update.message.text ,reply_to_message_id=message_id) 
+                    print(update.message.reply_to_message)
+                
+                else:    
+                    pass
+        else :
+            details = await context.bot.forward_message(chat_id=ADMIN_TELEGRAM_USER_ID,
+                                                                from_chat_id=update.message.chat_id, message_id=update.message.message_id)
+            add_user_message_data(details.message_id,update.message.message_id,update.effective_chat.id)
 
 def main():
     
@@ -504,6 +574,7 @@ def main():
         application.add_handler(CommandHandler('me', aki_me))
         application.add_handler(CommandHandler('total', total_members)) #admin command
 
+        application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, broadcastChat))
 
         application.add_handler(CallbackQueryHandler(aki_win, pattern=r"aki_win_"))
         application.add_handler(CallbackQueryHandler(aki_play_callback_handler, pattern=r"aki_play_"))

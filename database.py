@@ -260,3 +260,26 @@ def getAllGroups():
 def gettitle(chat_id:int) -> str:
     my_col = my_db["groups"]
     return my_col.find_one({"chat_id":chat_id})["title"]
+
+def add_user_message_data(message_id_in_admin_chat:int ,message_id_in_user_chat:int,user_id:int):
+    my_col = my_db["user_chatting_data"]
+    data = my_col.find_one(
+        {"message_id_in_admin_chat": message_id_in_admin_chat})
+
+    if data is None:
+        my_dict = {
+            "user_id": user_id,
+            "message_id_in_admin_chat": message_id_in_admin_chat,
+            "message_id_in_user_chat": message_id_in_user_chat,
+        }
+        my_col.insert_one(my_dict)
+def find_user_message_data(message_id_in_admin_chat:int):
+    my_col = my_col = my_db["user_chatting_data"]
+    data = my_col.find_one({"message_id_in_admin_chat": message_id_in_admin_chat})
+
+    if data is not None:
+        # If data is found, return the message_id_in_user_chat and user_id
+        return data["message_id_in_user_chat"], data["user_id"]
+    else:
+        # Return None if the message_id_in_admin_chat is not found
+        return None, None

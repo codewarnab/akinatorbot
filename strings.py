@@ -1,4 +1,4 @@
-
+SURETY = """**Surety Meter** : **{}%** """
 START_MSG = """
 Hello <b>{}</b> ! I'm <b>Akinator</b>🧞‍♂️.
 We can play a guessing game. 
