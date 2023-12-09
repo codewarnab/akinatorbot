@@ -505,7 +505,6 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
                     is_broadcast_message =True
 
             if is_broadcast_message :
-                print("triggerd")
                 success_count = 0
                 fail_count = 0
                 exceptions = []
@@ -543,7 +542,6 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
                 if update.effective_chat.id == ADMIN_TELEGRAM_USER_ID and update.message.reply_to_message!= None:
                     message_id,user_id=find_user_message_data(update.message.reply_to_message.message_id)
                     await context.bot.send_message(chat_id=user_id,text=update.message.text ,reply_to_message_id=message_id) 
-                    print(update.message.reply_to_message)
                 
                 else:    
                     pass
