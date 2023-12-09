@@ -62,7 +62,7 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 `#broadcast` - bot will broadcast any message with containing `#broadcast` in them 
 
-**CHATTING** -  You can now chat with the user in bot by replying the forwarded message from the user .
+**CHATTING** -  You can now chat with the user in bot by replying the forwarded message from the user (you can reply with anything text or media even with inline buttons) .
 
 
 ## Deployment 
