@@ -511,15 +511,12 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
                 subscribed_users= getAllUserIds()
                 for user_id in subscribed_users:
                         try:
-                            if update.message.reply_markup and update.message.reply_markup.inline_keyboard:
-                                await  context.bot.forward_message(chat_id=user_id, 
-                                                            from_chat_id=update.message.chat_id, message_id=update.message.message_id,
-                                                            disable_notification=False)
-                                success_count += 1
-                            else :
-                                await context.bot.copy_message(chat_id=user_id,
-                                                        from_chat_id=update.message.chat_id, message_id=update.message.message_id)
-                                success_count += 1
+                            reply_markup = update.message.reply_markup
+                            await context.bot.copy_message(chat_id=user_id,
+                                                               from_chat_id=ADMIN_TELEGRAM_USER_ID,
+                                                               message_id=update.message.message_id,
+                                                               reply_markup=reply_markup,)
+                            success_count += 1
                         except error.BadRequest:
                             exceptions.append(f"{user_id}: user not found")
                             fail_count += 1
@@ -541,7 +538,8 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
             else:
                 if update.effective_chat.id == ADMIN_TELEGRAM_USER_ID and update.message.reply_to_message!= None:
                     message_id,user_id=find_user_message_data(update.message.reply_to_message.message_id)
-                    await context.bot.send_message(chat_id=user_id,text=update.message.text ,reply_to_message_id=message_id) 
+                    reply_markup = update.message.reply_markup
+                    await context.bot.copy_message(chat_id=user_id,from_chat_id=ADMIN_TELEGRAM_USER_ID,message_id=update.message.message_id,reply_to_message_id=message_id,reply_markup=reply_markup,allow_sending_without_reply=True) 
                 
                 else:    
                     pass
