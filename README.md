@@ -2,7 +2,7 @@
 A Telegram bot where you can play the Akinator Guessing game
 check out [Akinator](https://telegram.me/Akinatorq_bot) on Telegram.
 If the bot is offline, contact [me](https://telegram.me/blacknut1803) on telegram, so that I can look into it.
-current users : 350 [25-11-2023]
+current users : 374 [09-12-2023]
 
 
 
@@ -22,7 +22,7 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 4) Now click on the cluster name which will take you to the Overview page.
 
-5) Click `Collections` and create a database called `aki-db`. Inside `aki-db` create a collections called `users`,`groups`,`last_msg_ids` .
+5) Click `Collections` and create a database called `aki-db`. Inside `aki-db` create a collections called `users`,`groups`,`last_msg_ids`,`user_chatting_data` .
 
 6) Now on the left side, under the `Security` click the `Database Access` and add a user. Don't forget to note down the username and password!
 
@@ -60,14 +60,17 @@ Akinator uses **MongoDB** by default to store the user stats such as number of g
 
 `/log`- get the log file sent to you 
 
+`#broadcast` - bot will broadcast any message with containing `#broadcast` in them 
+
+**CHATTING** -  You can now chat with the user in bot by replying the forwarded message from the user .
 
 
 ## Deployment 
 1 . download the repo as zip
 
- 2.change the necassary details in the config.py 
+2.change the necassary details in the config.py 
  
- 3 . learn how to deploy python script in gcloud [here](https://youtu.be/lEKp2O7MTfY?si=p2VYayICKKIxieKq)
+3 . learn how to deploy python script in gcloud [here](https://youtu.be/lEKp2O7MTfY?si=p2VYayICKKIxieKq)
  
 
 ## Credits
