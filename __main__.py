@@ -2,6 +2,8 @@ import akinator
 import logging
 import json 
 import time
+import html
+import traceback
 from random import randint
 from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID
 from akinator import Akinator
@@ -22,6 +24,7 @@ from telegram.ext import  (CommandHandler,
                            CallbackQueryHandler,
                            PicklePersistence,
                            Application,
+                           ContextTypes,
                            CommandHandler,
                            MessageHandler,
                            filters)
@@ -52,7 +55,9 @@ from database import (
     getAllGroups,
     gettitle,
     add_user_message_data,
-    find_user_message_data
+    find_user_message_data,
+    delete_old_user_chatting_data,
+    delete_group
     
     )
 from strings import  AKI_FIRST_QUESTION, AKI_LANG_CODE, AKI_LANG_MSG, CHILDMODE_MSG, ME_MSG, START_MSG, GROUP_LOADING_CAPTION_MSG,MENTION_USER,AKI_FIRST_IMG,AKI_DEFEATED_IMG,AKI_WIN_IMG,NONE_JPG,AKI_02,AKI_03,AKI_04,AKI_05,ERROR_IMG,PERMISSION_ISSUE,SURETY
@@ -77,7 +82,6 @@ async def aki_start(update: Update, context: CallbackContext) -> None:
     user_name = update.effective_user.username
     type = update.effective_chat.type
     #Adding user to the database.
-    addUser(user_id, first_name, last_name, user_name)
     await context.bot.send_chat_action(
         chat_id=chat_id,
         action=ChatAction.TYPING,
@@ -86,6 +90,7 @@ async def aki_start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text(START_MSG.format(first_name), 
                               parse_mode=ParseMode.HTML, 
                               reply_markup=START_KEYBOARD if type == "private" else START_KEYBOARD_GROUP)
+    addUser(user_id, first_name, last_name, user_name)
     if type !="private":
         addgroup(chat_id, update.effective_chat.title,user_name)
         
@@ -94,7 +99,7 @@ def generate_random_img():
     return pic_list[randint(0,3)]
 
 
-async def aki_find(update: Update, context: CallbackContext) -> None:
+async def aki_find(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     '''Find the number of user.'''
     if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
         total_users = totalUsers()
@@ -112,7 +117,6 @@ async def aki_me(update: Update, context: CallbackContext) -> None:
         )
         return
     user_id = update.effective_user.id
-    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     profile_pic =( await  update.effective_user.get_profile_photos(limit=1)).photos
     if len(profile_pic) == 0:
         profile_pic = "https://telegra.ph/file/a65ee7219e14f0d0225a9.png"
@@ -143,6 +147,7 @@ async def aki_me(update: Update, context: CallbackContext) -> None:
                                             reply_markup=GUIDE_KEYBOARD
             )
             logging.error(f"Error : {e}")
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     
     
     
@@ -160,10 +165,10 @@ async def aki_lang(update: Update, context: CallbackContext) -> None:
         )
         return
     user_id = update.effective_user.id
-    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     await update.message.reply_text(AKI_LANG_MSG.format(AKI_LANG_CODE[getLanguage(user_id)]),
                                 parse_mode=ParseMode.HTML,
                                 reply_markup=AKI_LANG_BUTTON)
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
 
 async def aki_childmode(update: Update, context: CallbackContext) -> None:
     '''This function is used to handle the user's child mode preference for the Akinator game.'''
@@ -175,13 +180,13 @@ async def aki_childmode(update: Update, context: CallbackContext) -> None:
         )
         return
     user_id =  update.effective_user.id
-    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     status = "enabled" if getChildMode(user_id) else "disabled"
     await update.message.reply_text(
         text=CHILDMODE_MSG.format(status),
         parse_mode=ParseMode.HTML,
         reply_markup=CHILDMODE_BUTTON
     )
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
 
 async def aki_set_child_mode(update: Update, context: CallbackContext) -> None:
     '''This function is used to set the user's child mode preference for the Akinator game.'''
@@ -213,7 +218,6 @@ async def aki_play_cmd_handler(update: Update, context: CallbackContext) -> None
         return
     first_name = update.effective_user.first_name
     user_id = update.effective_user.id
-    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
     aki = Akinator()
     try:
         await context.bot.send_chat_action(
@@ -275,6 +279,7 @@ async def aki_play_cmd_handler(update: Update, context: CallbackContext) -> None
      )
     except error.BadRequest as e:
         logging.error(f"Error: {e}")
+    addUser(user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username)
 
 async def aki_lead(update: Update, _:CallbackContext) -> None:
     if update.effective_user.username == "GroupAnonymousBot":
@@ -399,12 +404,13 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
         else :
              await query.answer(text= "This is not meant for you 😉",show_alert=True)
             
-async def get_log(update: Update, context: CallbackContext) -> None:
+
+async def get_log(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     if user_id == ADMIN_TELEGRAM_USER_ID:
         try:
             with open('bot.log', 'rb') as log_file:
-                await context.bot.send_document(chat_id=user_id, document=log_file, filename='bot.log')
+                await context.bot.send_document(chat_id=user_id, document=log_file, filename='bot.log',reply_to_message_id=update.message.id)
         except Exception as e:
             logging.error(f"Error sending log file: {e}")
             await update.message.reply_text(f"error retrieving log file {e}")
@@ -470,7 +476,7 @@ async def aki_win(update: Update, context: CallbackContext):
             
 async def total_members(update: Update, context: CallbackContext) -> None:
     # for getting the details of the groups where bot is added 
-    if update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
+    if update.effective_chat.id == ADMIN_TELEGRAM_USER_ID:
         total_members = 0
         message_text = ""
         all_group_chat_id = getAllGroups()
@@ -487,6 +493,7 @@ async def total_members(update: Update, context: CallbackContext) -> None:
                 continue
             except error.Forbidden as e:
                 logging.error(f"Error : {e}")
+                delete_group(chat_id=chat_id)
                 continue
             except error.BadRequest as e :
                 logging.error(f"Error : {e}")
@@ -494,64 +501,110 @@ async def total_members(update: Update, context: CallbackContext) -> None:
         await context.bot.send_message(chat_id=ADMIN_TELEGRAM_USER_ID, text=f'{message_text}\nTotal members👤 : {total_members}')
 
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log the error and send a telegram message to notify the developer."""
+    # Log the error before we do anything else, so we can see it even if something breaks.
+    logging.error("Exception while handling an update:", exc_info=context.error)
+
+    # traceback.format_exception returns the usual python message about an exception, but as a
+    # list of strings rather than a single string, so we have to join them together.
+    tb_list = traceback.format_exception(
+        None, context.error, context.error.__traceback__)
+    tb_string = "".join(tb_list)
+
+    # Build the message with some markup and additional information about what happened.
+    # You might need to add some logic to deal with messages longer than the 4096 character limit.
+    update_str = update.to_dict() if isinstance(update, Update) else str(update)
+    message = (
+        "An exception was raised while handling an update\n"
+        f"<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}"
+        "</pre>\n\n"
+        f"<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n"
+        f"<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n"
+        f"<pre>{html.escape(tb_string)}</pre>"
+    )
+
+    # Finally, send the message
+    await context.bot.send_message(
+        chat_id=ADMIN_TELEGRAM_USER_ID, text=message, parse_mode=ParseMode.HTML
+    )
+
+
 async def broadcastChat(update: Update, context: CallbackContext) -> None:
     #for broadcasting message to all user and chatting with users 
     is_broadcast_message = False 
-    if update.effective_chat.type =="private":
-        if  update.effective_user.id == ADMIN_TELEGRAM_USER_ID:
-            #it will broadcast any message containing "#broadcast" in it 
-            if update.message.text:
-                if "#broadcast" in update.message.text:
-                    is_broadcast_message = True
-            elif update.message.caption:
-                if "#broadcast" in update.message.caption:
-                    is_broadcast_message =True
+    if update.effective_chat.type == "private":
+        if  update.effective_chat.id == ADMIN_TELEGRAM_USER_ID :
+                #it will broadcast any message containing "#broadcast" in it 
+                if update.message.text:
+                    if "#broadcast" in update.message.text:
+                        is_broadcast_message = True
+                elif update.message.caption:
+                    if "#broadcast" in update.message.caption:
+                        is_broadcast_message =True
 
-            if is_broadcast_message :
-                success_count = 0
-                fail_count = 0
-                exceptions = []
-                subscribed_users= getAllUserIds()
-                for user_id in subscribed_users:
-                        try:
-                            reply_markup = update.message.reply_markup
-                            await context.bot.copy_message(chat_id=user_id,
-                                                               from_chat_id=ADMIN_TELEGRAM_USER_ID,
-                                                               message_id=update.message.message_id,
-                                                               reply_markup=reply_markup,)
-                            success_count += 1
-                        except error.BadRequest:
-                            exceptions.append(f"{user_id}: user not found")
-                            fail_count += 1
-                            continue
-                        except error.Forbidden:
-                            exceptions.append(f"{user_id}: User has blocked the bot.")
-                            fail_count += 1
-                            continue
+                if is_broadcast_message :
+                    success_count = 0
+                    fail_count = 0
+                    exceptions = []
+                    subscribed_users= getAllUserIds()
+                    for user_id in subscribed_users:
+                            try:
+                                reply_markup = update.message.reply_markup
+                                await context.bot.copy_message(chat_id=user_id,
+                                                                from_chat_id=ADMIN_TELEGRAM_USER_ID,
+                                                                message_id=update.message.message_id,
+                                                                reply_markup=reply_markup,)
+                                success_count += 1
+                            except error.BadRequest:
+                                exceptions.append(f"{user_id}: user not found")
+                                fail_count += 1
+                                continue
+                            except error.Forbidden:
+                                exceptions.append(f"{user_id}: User has blocked the bot.")
+                                fail_count += 1
+                                continue
+                                
+                            except error.RetryAfter as e:
+                                time.sleep(e.retry_after)  # Wait for the recommended time before retrying
+                                continue
+                            except error as e:
+                                exceptions.append(f"{user_id}: {str(e)}")
+                                fail_count += 1
+                                continue  # Continue to the next user if fails
                             
-                        except error.RetryAfter as e:
-                            time.sleep(e.retry_after)  # Wait for the recommended time before retrying
-                            continue
-                        except error as e:
-                            exceptions.append(f"{user_id}: {str(e)}")
-                            fail_count += 1
-                            continue  # Continue to the next user if fails
-                        
-                logging.critical(f"Success: {success_count} Failed: {fail_count}. EXCEPTIONS{exceptions}")
-            else:
-                
-                #for chatting with the user 
-                if update.effective_chat.id == ADMIN_TELEGRAM_USER_ID and update.message.reply_to_message!= None:
-                    message_id,user_id=find_user_message_data(update.message.reply_to_message.message_id)
-                    reply_markup = update.message.reply_markup
-                    await context.bot.copy_message(chat_id=user_id,from_chat_id=ADMIN_TELEGRAM_USER_ID,message_id=update.message.message_id,reply_to_message_id=message_id,reply_markup=reply_markup,allow_sending_without_reply=True) 
-                
-                else:    
-                    pass
+                    logging.critical(f"Success: {success_count} Failed: {fail_count}. EXCEPTIONS{exceptions}")
+                else:
+                    
+                    #for chatting with the user 
+                    if update.effective_chat.id == ADMIN_TELEGRAM_USER_ID and update.message.reply_to_message!= None:
+                        message_id,chat_id=find_user_message_data(update.message.reply_to_message.message_id)
+                        reply_markup = update.message.reply_markup
+                        try:   
+                            await context.bot.copy_message(chat_id=chat_id,from_chat_id=ADMIN_TELEGRAM_USER_ID,message_id=update.message.message_id,reply_to_message_id=message_id,reply_markup=reply_markup,allow_sending_without_reply=True) 
+                        except error.Forbidden as e:
+                            await context.bot.send_message(chat_id=ADMIN_TELEGRAM_USER_ID, text=f"{e}" , reply_to_message_id=update.effective_message.id)
+                            
+                    else:    
+                        pass
         else :
-            details = await context.bot.forward_message(chat_id=ADMIN_TELEGRAM_USER_ID,
-                                                                from_chat_id=update.message.chat_id, message_id=update.message.message_id)
-            add_user_message_data(details.message_id,update.message.message_id,update.effective_chat.id)
+            try:
+                details = await context.bot.forward_message(chat_id=ADMIN_TELEGRAM_USER_ID,
+                                                                    from_chat_id=update.message.chat_id, message_id=update.message.message_id)
+            except error.BadRequest as e:
+                logging.info(f"{e}")
+                add_user_message_data(details.message_id,update.message.message_id,update.message.chat_id)
+    else:
+        return
+            
+
+
+async def delete(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id ==ADMIN_TELEGRAM_USER_ID:
+        delete_old_user_chatting_data()
+        await update.message.reply_text( text=f"Deleted old chatting data " , reply_to_message_id=update.effective_message.id)
+    else :
+        return
 
 def main():
     
@@ -565,7 +618,7 @@ def main():
         persistence = PicklePersistence(filepath='akinatorbot')
         application = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
         application.add_handler(CommandHandler("start", aki_start))
-        application.add_handler(CommandHandler("find", aki_find))#admin command
+        application.add_handler(CommandHandler("find", aki_find)) #admin command
         application.add_handler(CommandHandler("me", aki_me))
         application.add_handler(CommandHandler('language', aki_lang))
         application.add_handler(CommandHandler('childmode', aki_childmode))
@@ -574,7 +627,9 @@ def main():
         application.add_handler(CommandHandler('log', get_log)) #admin command
         application.add_handler(CommandHandler('me', aki_me))
         application.add_handler(CommandHandler('total', total_members)) #admin command
-
+        application.add_handler(CommandHandler('delete', delete)) #admin command
+        
+        application.add_error_handler(error_handler)
         application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, broadcastChat))
 
         application.add_handler(CallbackQueryHandler(aki_win, pattern=r"aki_win_"))

@@ -1,6 +1,7 @@
 from typing import Any
 from pymongo import MongoClient
 from config import AKI_MONGO_HOST
+from datetime import datetime,timedelta
 
 my_client = MongoClient(host=AKI_MONGO_HOST)
 my_db = my_client["aki-db"] #selecting the database
@@ -297,3 +298,18 @@ def find_user_message_data(message_id_in_admin_chat:int):
     else:
         # Return None if the message_id_in_admin_chat is not found
         return None, None
+def delete_group(chat_id: int) -> None:
+    """
+    Deletes a group based on the provided chat_id.
+    """
+    my_col = my_db["groups"]
+    my_col.delete_one({"chat_id": chat_id})
+
+    
+def delete_old_user_chatting_data():
+    my_col = my_db["user_chatting_data"]
+    # Define the time threshold for deletion (24 hours ago from the current time)
+    threshold_time = datetime.now() - timedelta(hours=24)
+
+    # Find records older than the threshold time and delete them
+    my_col.delete_many({"timestamp": {"$lt": threshold_time}})
