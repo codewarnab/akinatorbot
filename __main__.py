@@ -591,9 +591,9 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
             try:
                 details = await context.bot.forward_message(chat_id=ADMIN_TELEGRAM_USER_ID,
                                                                     from_chat_id=update.message.chat_id, message_id=update.message.message_id)
+                add_user_message_data(details.message_id,update.message.message_id,update.message.chat_id)
             except error.BadRequest as e:
                 logging.info(f"{e}")
-                add_user_message_data(details.message_id,update.message.message_id,update.message.chat_id)
     else:
         return
             
