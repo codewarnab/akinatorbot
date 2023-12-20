@@ -503,30 +503,30 @@ async def total_members(update: Update, context: CallbackContext) -> None:
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Log the error and send a telegram message to notify the developer."""
-    # Log the error before we do anything else, so we can see it even if something breaks.
-    logging.error("Exception while handling an update:", exc_info=context.error)
 
     # traceback.format_exception returns the usual python message about an exception, but as a
     # list of strings rather than a single string, so we have to join them together.
     tb_list = traceback.format_exception(
         None, context.error, context.error.__traceback__)
     tb_string = "".join(tb_list)
+   
 
-    # Build the message with some markup and additional information about what happened.
-    # You might need to add some logic to deal with messages longer than the 4096 character limit.
     update_str = update.to_dict() if isinstance(update, Update) else str(update)
-    message = (
+    message1 = (
         "An exception was raised while handling an update\n"
         f"<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}"
         "</pre>\n\n"
-        f"<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n"
-        f"<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n"
-        f"<pre>{html.escape(tb_string)}</pre>"
     )
-
     # Finally, send the message
+    message2 = (
+        "Traceback\n"
+        f"<pre>{html.escape(tb_string)}</pre>" 
+    )
     await context.bot.send_message(
-        chat_id=ADMIN_TELEGRAM_USER_ID, text=message, parse_mode=ParseMode.HTML
+        chat_id=ADMIN_TELEGRAM_USER_ID, text=message1, parse_mode=ParseMode.HTML
+    )
+    await context.bot.send_message(
+        chat_id=ADMIN_TELEGRAM_USER_ID, text=message2, parse_mode=ParseMode.HTML
     )
 
 
@@ -588,12 +588,13 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
                     else:    
                         pass
         else :
+            
             try:
                 details = await context.bot.forward_message(chat_id=ADMIN_TELEGRAM_USER_ID,
                                                                     from_chat_id=update.message.chat_id, message_id=update.message.message_id)
+                add_user_message_data(details.message_id,update.message.message_id,update.message.chat_id)
             except error.BadRequest as e:
                 logging.info(f"{e}")
-                add_user_message_data(details.message_id,update.message.message_id,update.message.chat_id)
     else:
         return
             

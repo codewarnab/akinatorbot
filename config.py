@@ -1,9 +1,4 @@
-from json import load
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-AKI_MONGO_HOST = os.getenv("AKI_MONGO_HOST") 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_TELEGRAM_USER_ID = int(os.getenv("ADMIN_TELEGRAM_USER_ID"))
+AKI_MONGO_HOST = "mongodb+srv://dp950810:Oeo3aD0MntFPb7xj@aki-db.3kvckke.mongodb.net/?retryWrites=true&w=majority"
+BOT_TOKEN = "6552941773:AAFYu_2xpZgnhrcKpjBrT9APi1CSpxPD5ZU"
+ADMIN_TELEGRAM_USER_ID = 6023650727
+# zZeU7QNfZOD8xuzr
