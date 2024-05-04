@@ -140,7 +140,7 @@ def updateUser(user_id: int, first_name: str, last_name: str, user_name: str) ->
     my_col.update_one({"user_id": user_id}, {"$set":to_update})
 
 
-def getUser(user_id: int) -> Any or None:
+def getUser(user_id: int) -> int:
     """
     Returns the user document (Record)
     """
