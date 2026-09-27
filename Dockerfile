@@ -1,6 +1,6 @@
 FROM python:3.12.12-slim-bookworm
 
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 TZ=UTC
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 TZ=UTC SQLITE_PATH=/app/data/aki.db
 
 WORKDIR /app
 
@@ -12,7 +12,11 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 COPY --chown=appuser:appgroup . .
 
+RUN mkdir -p /app/data && chown appuser:appgroup /app/data
+
 USER appuser
+
+VOLUME ["/app/data"]
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 CMD python -c "import os,sys; sys.exit(0 if any('__main__.py' in open(f'/proc/{p}/cmdline','rb').read().decode(errors='ignore') for p in os.listdir('/proc') if p.isdigit()) else 1)"
 

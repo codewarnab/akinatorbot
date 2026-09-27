@@ -28,3 +28,5 @@ README.md
 bot.log
 akinatorbot
 akinatorbot*
+*.db
+*.sqlite*

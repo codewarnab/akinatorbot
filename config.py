@@ -21,6 +21,7 @@ def _required_int(name: str) -> int:
         )
 
 
-AKI_MONGO_HOST: str = _required("AKI_MONGO_HOST")
 BOT_TOKEN: str = _required("BOT_TOKEN")
 ADMIN_TELEGRAM_USER_ID: int = _required_int("ADMIN_TELEGRAM_USER_ID")
+SQLITE_PATH: str = os.getenv("SQLITE_PATH", "aki.db")
+DB_PROVIDER: str = os.getenv("DB_PROVIDER", "sqlite").lower()
