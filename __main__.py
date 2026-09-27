@@ -1,4 +1,3 @@
-import akinator    
 import asyncio
 import logging
 import json
@@ -6,7 +5,7 @@ import html
 import traceback
 from random import randint
 from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID
-from akinator import Akinator, CantGoBackAnyFurther, InvalidChoiceError, InvalidLanguageError, InvalidThemeError
+from aki_client import Akinator, CantGoBackAnyFurther, InvalidChoiceError, InvalidLanguageError, InvalidThemeError
 from telegram import Update ,InputMediaPhoto,error
 from telegram.error import TelegramError
 from telegram.constants import ParseMode,ChatAction
@@ -63,6 +62,10 @@ from database import (
 from strings import  AKI_FIRST_QUESTION, AKI_LANG_CODE, AKI_LANG_MSG, CHILDMODE_MSG, ME_MSG, START_MSG, GROUP_LOADING_CAPTION_MSG,MENTION_USER,AKI_FIRST_IMG,AKI_DEFEATED_IMG,AKI_WIN_IMG,NONE_JPG,AKI_02,AKI_03,AKI_04,AKI_05,ERROR_IMG,PERMISSION_ISSUE,SURETY
 
 pic_list = [AKI_02,AKI_03,AKI_04,AKI_05]
+
+# Live game sessions. Kept in memory (NOT in persisted user_data) because
+# the game client holds a network session that cannot be pickled.
+GAMES: dict = {}
 
 
 
@@ -287,16 +290,8 @@ async def aki_play_cmd_handler(update: Update, context: CallbackContext) -> None
         except error.BadRequest:
             await update.message.reply_text(text)
         return
-    context.user_data[f"aki_{user_id}"] = aki
-    
-    #context.user_data[f"aki_{user_id}"]  to store the Akinator instance (aki) so that it can be accessed later in the conversation. 
-    
-    context.user_data[f"q_{user_id}"] = q
-    
-    #context.user_data[f"q_{user_id}"] stores the current question (q) being asked in the game.
-    context.user_data[f"ques_{user_id}"] = 1
-    
-    #context.user_data[f"ques_{user_id}"]  to keep track of the question number, starting from 1.
+    GAMES[user_id] = {"aki": aki, "q": q}
+    # Game state lives in memory only (see GAMES above).
     try:
         caption = q if update.effective_chat.type == "private" else MENTION_USER.format(first_name, user_id, q)
         await msg.edit_caption(
@@ -330,8 +325,7 @@ async def get_lead_total(lead_list: list, lead_category: str) -> str:
 
 
 async def del_data(context:CallbackContext, user_id: int):
-    context.user_data.pop(f"q_{user_id}", None)
-    context.user_data.pop(f"aki_{user_id}", None)
+    GAMES.pop(user_id, None)
 
 
 async def aki_play_callback_handler(update: Update, context:CallbackContext) -> None:
@@ -343,8 +337,12 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
         msg_id = query.message.id 
         if get_user_id(msg_id,chat_id)==query.from_user.id:
             try :
-                aki = context.user_data[f"aki_{user_id}"]
-                q = context.user_data[f"q_{user_id}"]
+                game = GAMES.get(user_id)
+                if game is None:
+                    await query.answer(text="Game expired (bot restarted?), please /play again", show_alert=True)
+                    return
+                aki = game["aki"]
+                q = game["q"]
                 updateTotalQuestions(user_id, 1)
                 a = query.data.split('_')[-1]
                 if a == '5':
@@ -387,8 +385,8 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
 
                 await query.answer()
                 if aki.win:
-                    name = aki.name_proposition
-                    description = aki.description_proposition
+                    name = aki.name_proposition or "someone"
+                    description = aki.description_proposition or "mystery person"
                     photo = aki.photo
                     if not photo or 'none.jpg' in photo:
                         photo = NONE_JPG
@@ -398,8 +396,7 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
                         ),
                         reply_markup=AKI_WIN_BUTTON
                     )
-                    context.user_data[f"aki_{user_id}"] = aki
-                    context.user_data[f"q_{user_id}"] = q
+                    GAMES[user_id] = {"aki": aki, "q": q}
                 elif aki.progression < 85:
                     v= aki.progression+15
                     v= round(v,2)
@@ -417,8 +414,7 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
                     except error.BadRequest as e:
                         logging.error(f"Error: {e}")
 
-                    context.user_data[f"aki_{user_id}"] = aki
-                    context.user_data[f"q_{user_id}"] = q
+                    GAMES[user_id] = {"aki": aki, "q": q}
                 else:
                     # progression >= 85 but not win yet: keep playing
                     v= aki.progression+15
@@ -437,8 +433,7 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
                     except error.BadRequest as e:
                         logging.error(f"Error: {e}")
 
-                    context.user_data[f"aki_{user_id}"] = aki
-                    context.user_data[f"q_{user_id}"] = q
+                    GAMES[user_id] = {"aki": aki, "q": q}
             except (InvalidLanguageError, InvalidThemeError) as e:
                     logging.error(f"Error : {e}")
                     await query.answer(text="Something went wrong, please start a new game", show_alert=True)
@@ -523,7 +518,8 @@ async def aki_win(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     query = update.callback_query
     ans = query.data.split('_')[-1]
-    aki = context.user_data.get(f"aki_{user_id}")
+    game = GAMES.get(user_id)
+    aki = game["aki"] if game is not None else None
 
     if ans =='y':
         if aki is not None:
@@ -551,8 +547,7 @@ async def aki_win(update: Update, context: CallbackContext):
                 excluded = False
         if excluded and not aki.win:
             q = aki.question
-            context.user_data[f"aki_{user_id}"] = aki
-            context.user_data[f"q_{user_id}"] = q
+            GAMES[user_id] = {"aki": aki, "q": q}
             v = round(aki.progression + 15, 2)
             type = update.effective_chat.type
             caption = q if type == "private" else MENTION_USER.format(update.effective_user.first_name, user_id, q)
