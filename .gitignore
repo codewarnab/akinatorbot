@@ -161,3 +161,7 @@ cython_debug/
 .vscode/settings.json
 akinatorbot
 test.py
+
+# local sqlite
+*.db
+*.sqlite*
