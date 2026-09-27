@@ -57,7 +57,7 @@ AKI_LANG_BUTTON = InlineKeyboardMarkup(
             InlineKeyboardButton(AKI_LANG_CODE['pl'], callback_data='aki_set_lang_pl')
          ],
          [
-            InlineKeyboardButton(AKI_LANG_CODE['pt'], callback_data='aki_set_lang_p'),
+            InlineKeyboardButton(AKI_LANG_CODE['pt'], callback_data='aki_set_lang_pt'),
             InlineKeyboardButton(AKI_LANG_CODE['ru'], callback_data='aki_set_lang_ru'),
             InlineKeyboardButton(AKI_LANG_CODE['tr'], callback_data='aki_set_lang_tr'),
             InlineKeyboardButton(AKI_LANG_CODE['id'], callback_data='aki_set_lang_id')

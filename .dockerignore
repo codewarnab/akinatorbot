@@ -19,3 +19,12 @@ coverage.xml
 .pytest_cache
 .hypothesis
 venv
+.env
+.env.*
+.gitignore
+Dockerfile
+.dockerignore
+README.md
+bot.log
+akinatorbot
+akinatorbot*

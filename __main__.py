@@ -1,13 +1,14 @@
 import akinator    
+import asyncio
 import logging
-import json 
-import time
+import json
 import html
 import traceback
 from random import randint
 from config import BOT_TOKEN,ADMIN_TELEGRAM_USER_ID
-from akinator import Akinator
+from akinator import Akinator, CantGoBackAnyFurther, InvalidChoiceError, InvalidLanguageError, InvalidThemeError
 from telegram import Update ,InputMediaPhoto,error
+from telegram.error import TelegramError
 from telegram.constants import ParseMode,ChatAction
 from keyboard import (  AKI_LANG_BUTTON,
                         AKI_LEADERBOARD_KEYBOARD,
@@ -25,7 +26,6 @@ from telegram.ext import  (CommandHandler,
                            PicklePersistence,
                            Application,
                            ContextTypes,
-                           CommandHandler,
                            MessageHandler,
                            filters)
 from database import (
@@ -124,7 +124,7 @@ async def aki_me(update: Update, context: CallbackContext) -> None:
         profile_pic = profile_pic[0][1]
     user = getUser(user_id)
     await context.bot.send_chat_action(
-        chat_id=update._effective_chat.id,
+        chat_id=update.effective_chat.id,
         action=ChatAction.UPLOAD_PHOTO,
     )
     try:
@@ -203,7 +203,7 @@ async def aki_set_lang(update: Update, context: CallbackContext) -> None:
     lang_code = query.data.split('_')[-1]
     user_id = update.effective_user.id
     updateLanguage(user_id, lang_code)
-    query.edit_message_text(f"Language Successfully changed to {AKI_LANG_CODE[lang_code]} !")
+    await query.edit_message_text(f"Language Successfully changed to {AKI_LANG_CODE[lang_code]} !")
     
 async def aki_play_cmd_handler(update: Update, context: CallbackContext) -> None:
     '''This function is used to handle the /play command.'''
@@ -221,7 +221,7 @@ async def aki_play_cmd_handler(update: Update, context: CallbackContext) -> None
     aki = Akinator()
     try:
         await context.bot.send_chat_action(
-            chat_id=update._effective_chat.id,
+            chat_id=update.effective_chat.id,
             action=ChatAction.UPLOAD_PHOTO,
         )
     except error.BadRequest as e:
@@ -259,7 +259,34 @@ async def aki_play_cmd_handler(update: Update, context: CallbackContext) -> None
         
 
     updateTotalGuess(user_id, total_guess=1)
-    q = aki.start_game(language=getLanguage(user_id), child_mode=getChildMode(user_id))
+    try:
+        await asyncio.to_thread(aki.start_game, language=getLanguage(user_id), child_mode=bool(getChildMode(user_id)))
+        q = aki.question
+    except (InvalidLanguageError, InvalidThemeError) as e:
+        logging.error(f"Error starting game : {e}")
+        try:
+            await msg.edit_caption(caption="Invalid language/theme configured. Please change language with /language and /play again.")
+        except error.BadRequest:
+            await update.message.reply_text("Invalid language/theme configured. Please change language with /language and /play again.")
+        try:
+            await msg.delete()
+        except error.BadRequest:
+            pass
+        return
+    except RuntimeError as e:
+        logging.error(f"Error starting game : {e}")
+        err_msg = str(e).lower()
+        if "timed out" in err_msg or "timeout" in err_msg:
+            text = "Akinator took too long to respond. Please /play again."
+        elif "technical" in err_msg:
+            text = "Aki server is down currently, try again later."
+        else:
+            text = "Something went wrong, please /play again."
+        try:
+            await msg.edit_caption(caption=text)
+        except error.BadRequest:
+            await update.message.reply_text(text)
+        return
     context.user_data[f"aki_{user_id}"] = aki
     
     #context.user_data[f"aki_{user_id}"]  to store the Akinator instance (aki) so that it can be accessed later in the conversation. 
@@ -303,8 +330,8 @@ async def get_lead_total(lead_list: list, lead_category: str) -> str:
 
 
 async def del_data(context:CallbackContext, user_id: int):
-    del context.user_data[f"q_{user_id}"]
-    del context.user_data[f"aki_{user_id}"]
+    context.user_data.pop(f"q_{user_id}", None)
+    context.user_data.pop(f"aki_{user_id}", None)
 
 
 async def aki_play_callback_handler(update: Update, context:CallbackContext) -> None:
@@ -323,22 +350,57 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
                 if a == '5':
                     updateTotalQuestions(user_id, -1)
                     try:
-                        q = aki.back()
-                    except akinator.exceptions.CantGoBackAnyFurther:
+                        await asyncio.to_thread(aki.back)
+                        q = aki.question
+                    except CantGoBackAnyFurther:
                         await query.answer(text=AKI_FIRST_QUESTION, show_alert=True)
                         return
                 else:
                     try :
-                        q = aki.answer(a) #this returns the next question 
-                    except akinator.exceptions.AkiTimedOut:
-                        await query.answer(text="you took too long to answer the question. /play again",show_alert=True)
+                        await asyncio.to_thread(aki.answer, a)
+                        q = aki.question
+                    except InvalidChoiceError:
+                        await query.answer(text="Invalid answer, please try again or start a new game ", show_alert=True)
+                        return
+                    except (InvalidLanguageError, InvalidThemeError) as e:
+                        logging.error(f"Error : {e}")
+                        await query.answer(text="Something went wrong, please start a new game", show_alert=True)
                         try:
                             await query.delete_message()
                         except error.BadRequest as e:
                             logging.error(f"Error : {e}")
+                        return
+                    except RuntimeError as e:
+                        logging.error(f"Error : {e}")
+                        err_msg = str(e).lower()
+                        if "timed out" in err_msg or "timeout" in err_msg:
+                            await query.answer(text="you took too long to answer the question. /play again", show_alert=True)
+                        elif "technical" in err_msg:
+                            await query.answer(text="Aki server is down currenlty try again later", show_alert=True)
+                        else:
+                            await query.answer(text="Something went wrong, please start a new game", show_alert=True)
+                        try:
+                            await query.delete_message()
+                        except error.BadRequest as e:
+                            logging.error(f"Error : {e}")
+                        return
 
-                query.answer()
-                if aki.progression < 85:
+                await query.answer()
+                if aki.win:
+                    name = aki.name_proposition
+                    description = aki.description_proposition
+                    photo = aki.photo
+                    if not photo or 'none.jpg' in photo:
+                        photo = NONE_JPG
+                    await query.message.edit_media(
+                        InputMediaPhoto(media=photo,
+                        caption=f"It's {name} ({description})! Was I correct?"
+                        ),
+                        reply_markup=AKI_WIN_BUTTON
+                    )
+                    context.user_data[f"aki_{user_id}"] = aki
+                    context.user_data[f"q_{user_id}"] = q
+                elif aki.progression < 85:
                     v= aki.progression+15
                     v= round(v,2)
                     try:
@@ -358,49 +420,57 @@ async def aki_play_callback_handler(update: Update, context:CallbackContext) -> 
                     context.user_data[f"aki_{user_id}"] = aki
                     context.user_data[f"q_{user_id}"] = q
                 else:
-                    aki.win()
-                    aki = aki.first_guess
-                    if aki['picture_path'] == 'none.jpg':
-                        aki['absolute_picture_path'] = NONE_JPG
-                    await query.message.edit_media(
-                        InputMediaPhoto(media=aki['absolute_picture_path'],
-                        caption=f"It's {aki['name']} ({aki['description']})! Was I correct?"
-                        ),
-                        reply_markup=AKI_WIN_BUTTON
-                    )
-                    del_data(context, user_id)
-            except akinator.exceptions.AkiServerDown:
-                    await query.answer(text="Aki server is down currenlty try again later",show_alert=True)
+                    # progression >= 85 but not win yet: keep playing
+                    v= aki.progression+15
+                    v= round(v,2)
+                    try:
+                        caption = q if type == "private" else MENTION_USER.format(update.effective_user.first_name, user_id, q)
+
+                        await query.message.edit_media(
+                         InputMediaPhoto(
+                            media=generate_random_img(),
+                            caption=caption+"\n"+SURETY.format(v),
+                            parse_mode=ParseMode.MARKDOWN
+                                ),
+                            reply_markup=AKI_PLAY_KEYBOARD
+                             )
+                    except error.BadRequest as e:
+                        logging.error(f"Error: {e}")
+
+                    context.user_data[f"aki_{user_id}"] = aki
+                    context.user_data[f"q_{user_id}"] = q
+            except (InvalidLanguageError, InvalidThemeError) as e:
+                    logging.error(f"Error : {e}")
+                    await query.answer(text="Something went wrong, please start a new game", show_alert=True)
                     try:
                             await query.delete_message()
                     except error.BadRequest as e:
                             logging.error(f"Error : {e}")
-            except akinator.exceptions.AkiTechnicalError:
-                    await query.answer(text="Aki server is down currenlty try again later",show_alert=True)
-                    await query.delete_message()
-            except akinator.exceptions.AkiTimedOut:
-                    await query.answer(text="you took too long to answer the question. /play again",show_alert=True)
+            except RuntimeError as e:
+                    logging.error(f"Error : {e}")
+                    err_msg = str(e).lower()
+                    if "timed out" in err_msg or "timeout" in err_msg:
+                        await query.answer(text="you took too long to answer the question. /play again", show_alert=True)
+                    elif "technical" in err_msg:
+                        await query.answer(text="Aki server is down currenlty try again later", show_alert=True)
+                    else:
+                        await query.answer(text="Something went wrong, please start a new game", show_alert=True)
                     try:
                             await query.delete_message()
                     except error.BadRequest as e:
                             logging.error(f"Error : {e}")
             except json.JSONDecodeError as e:
+                    logging.error(f"Error : {e}")
                     await query.answer(text = "Something went wrong, please start a new game",show_alert=True)
                     try:
                             await query.delete_message()
                     except error.BadRequest as e:
                             logging.error(f"Error : {e}")
-            except akinator.exceptions.AkiNoQuestions:
-                    await query.answer(text="Akinator run out of question 😵‍💫 , please go back and answer them correctly",show_alert=True)
-                    return
-            except akinator.exceptions.InvalidAnswerError:
+            except InvalidChoiceError:
                     await query.answer(text="Invalid answer, please try again or start a new game ",show_alert=True)
-            except akinator.exceptions.AkiConnectionFailure:
-                    await query.answer(text="you took too long to answer the question. /play again",show_alert=True)
-                    try:
-                            await query.delete_message()
-                    except error.BadRequest as e:
-                            logging.error(f"Error : {e}")
+            except CantGoBackAnyFurther:
+                    await query.answer(text=AKI_FIRST_QUESTION, show_alert=True)
+                    return
         else :
              await query.answer(text= "This is not meant for you 😉",show_alert=True)
             
@@ -415,13 +485,13 @@ async def get_log(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             logging.error(f"Error sending log file: {e}")
             await update.message.reply_text(f"error retrieving log file {e}")
     else:
-        update.message.reply_text("You don't have permission to access the log file.")
+        await update.message.reply_text("You don't have permission to access the log file.")
             
 
 
 async def aki_lead_cb_handler(update: Update, context:CallbackContext) -> None:
     query = update.callback_query
-    query.answer()
+    await query.answer()
     data = query.data.split('_')[-1]
     
     if data == 'cguess':
@@ -453,8 +523,14 @@ async def aki_win(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     query = update.callback_query
     ans = query.data.split('_')[-1]
+    aki = context.user_data.get(f"aki_{user_id}")
 
     if ans =='y':
+        if aki is not None:
+            try:
+                await asyncio.to_thread(aki.choose)
+            except Exception as e:
+                logging.error(f"Error : {e}")
         await query.message.edit_media(
             InputMediaPhoto(
                 media=AKI_WIN_IMG,
@@ -463,7 +539,35 @@ async def aki_win(update: Update, context: CallbackContext):
             reply_markup=SHARE_BUTTON
         )
         updateCorrectGuess(user_id=user_id, correct_guess=1)
+        await del_data(context, user_id)
     else:
+        excluded = False
+        if aki is not None:
+            try:
+                await asyncio.to_thread(aki.exclude)
+                excluded = True
+            except Exception as e:
+                logging.error(f"Error : {e}")
+                excluded = False
+        if excluded and not aki.win:
+            q = aki.question
+            context.user_data[f"aki_{user_id}"] = aki
+            context.user_data[f"q_{user_id}"] = q
+            v = round(aki.progression + 15, 2)
+            type = update.effective_chat.type
+            caption = q if type == "private" else MENTION_USER.format(update.effective_user.first_name, user_id, q)
+            try:
+                await query.message.edit_media(
+                    InputMediaPhoto(
+                        media=generate_random_img(),
+                        caption=caption + "\n" + SURETY.format(v),
+                        parse_mode=ParseMode.MARKDOWN
+                    ),
+                    reply_markup=AKI_PLAY_KEYBOARD
+                )
+            except error.BadRequest as e:
+                logging.error(f"Error: {e}")
+            return
         await query.message.edit_media(
             InputMediaPhoto(
                 media=AKI_DEFEATED_IMG,
@@ -472,6 +576,7 @@ async def aki_win(update: Update, context: CallbackContext):
             reply_markup=None
         )
         updateWrongGuess(user_id=user_id, wrong_guess=1)
+        await del_data(context, user_id)
             
             
 async def total_members(update: Update, context: CallbackContext) -> None:
@@ -566,9 +671,9 @@ async def broadcastChat(update: Update, context: CallbackContext) -> None:
                                 continue
                                 
                             except error.RetryAfter as e:
-                                time.sleep(e.retry_after)  # Wait for the recommended time before retrying
+                                await asyncio.sleep(e.retry_after)  # Wait for the recommended time before retrying
                                 continue
-                            except error as e:
+                            except TelegramError as e:
                                 exceptions.append(f"{user_id}: {str(e)}")
                                 fail_count += 1
                                 continue  # Continue to the next user if fails
@@ -626,7 +731,6 @@ def main():
         application.add_handler(CommandHandler('play', aki_play_cmd_handler))
         application.add_handler(CommandHandler('leaderboard', aki_lead))
         application.add_handler(CommandHandler('log', get_log)) #admin command
-        application.add_handler(CommandHandler('me', aki_me))
         application.add_handler(CommandHandler('total', total_members)) #admin command
         application.add_handler(CommandHandler('delete', delete)) #admin command
         

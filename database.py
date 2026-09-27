@@ -1,9 +1,22 @@
-from typing import Any
+from typing import Optional, Dict, Any, List, Tuple
 from pymongo import MongoClient
+from pymongo.server_api import ServerApi
 from config import AKI_MONGO_HOST
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta, timezone
 
-my_client = MongoClient(host=AKI_MONGO_HOST)
+if not AKI_MONGO_HOST:
+    raise RuntimeError("AKI_MONGO_HOST env var is missing")
+
+my_client = MongoClient(
+    host=AKI_MONGO_HOST,
+    server_api=ServerApi("1"),
+    serverSelectionTimeoutMS=5000,
+    connectTimeoutMS=10000,
+    socketTimeoutMS=20000,
+    retryWrites=True,
+    retryReads=True,
+)
+# NOTE: to verify connectivity at startup, call my_client.admin.command("ping") in a try/except — do NOT ping unconditionally at import time.
 my_db = my_client["aki-db"] #selecting the database
 
 
@@ -82,14 +95,15 @@ def update_last_msg_id(user_id:int,last_msg_id:int,chat_id:int,current_msg_id:in
 
 
 
-def get_last_msg_id(user_id:int) -> int:
+def get_last_msg_id(user_id:int) -> Optional[int]:
     my_col = my_db["last_msg_ids"]
-    if my_col.find_one({"user_id":user_id}) is None:
+    data = my_col.find_one({"user_id":user_id})
+    if data is None:
         return None
     else :
-        return my_col.find_one({"user_id":user_id})["last_msg_id"]
+        return data["last_msg_id"]
 
-def get_chat_id(user_id: int, last_msg_id: int) -> int:
+def get_chat_id(user_id: int, last_msg_id: int) -> Optional[int]:
     my_col = my_db["last_msg_ids"]
     chat_info = my_col.find_one({"user_id": user_id, "last_msg_id": last_msg_id})
     if chat_info is None:
@@ -98,7 +112,7 @@ def get_chat_id(user_id: int, last_msg_id: int) -> int:
         return chat_info["chat_id"]
 
 
-def get_user_id(last_msg_id: int, chat_id: int) -> int:
+def get_user_id(last_msg_id: int, chat_id: int) -> Optional[int]:
     my_col = my_db["last_msg_ids"]
     user_info = my_col.find_one({"last_msg_id": last_msg_id, "chat_id": chat_id})
     if user_info is None:
@@ -121,10 +135,10 @@ def updategroup(chat_id:int,title:str,username:str) -> None:
 
 
 
-def totalUsers():
+def totalUsers() -> int:
     my_col = my_db["users"]
     #Returns the total no.of users who has started the bot.
-    return len(list(my_col.find({})))
+    return my_col.count_documents({})
 
 
 def updateUser(user_id: int, first_name: str, last_name: str, user_name: str) -> None:
@@ -140,7 +154,7 @@ def updateUser(user_id: int, first_name: str, last_name: str, user_name: str) ->
     my_col.update_one({"user_id": user_id}, {"$set":to_update})
 
 
-def getUser(user_id: int) -> int:
+def getUser(user_id: int) -> Optional[Dict[str, Any]]:
     """
     Returns the user document (Record)
     """
@@ -153,7 +167,10 @@ def getLanguage(user_id: int) -> str:
     Gets(Returns) the Language Code of the user. (str)
     """
     my_col = my_db["users"]
-    return my_col.find_one({"user_id": user_id})["aki_lang"]
+    doc = my_col.find_one({"user_id": user_id})
+    if doc is None:
+        return "en"
+    return doc.get("aki_lang", "en")
 
 
 def getChildMode(user_id: int) -> int:
@@ -161,23 +178,35 @@ def getChildMode(user_id: int) -> int:
     Get(Returns) the Child mode status of the user. (str)
     """
     my_col = my_db["users"]
-    return my_col.find_one({"user_id": user_id})["child_mode"]
+    doc = my_col.find_one({"user_id": user_id})
+    if doc is None:
+        return 1
+    return doc.get("child_mode", 1)
 
 
 def getTotalGuess(user_id: int) -> int:
     
-    return my_db["users"].find_one({"user_id": user_id})["total_guess"]
+    doc = my_db["users"].find_one({"user_id": user_id})
+    if doc is None:
+        return 0
+    return doc.get("total_guess", 0)
 
 
 def getCorrectGuess(user_id: int) -> int:
     
-    return my_db["users"].find_one({"user_id": user_id})["correct_guess"]
+    doc = my_db["users"].find_one({"user_id": user_id})
+    if doc is None:
+        return 0
+    return doc.get("correct_guess", 0)
 
 
 
 def getWrongGuess(user_id: int) -> int:
     
-    return my_db["users"].find_one({"user_id": user_id})["wrong_guess"]
+    doc = my_db["users"].find_one({"user_id": user_id})
+    if doc is None:
+        return 0
+    return doc.get("wrong_guess", 0)
 
 
 def getUnfinishedGuess(user_id: int) -> int:
@@ -193,7 +222,10 @@ def getTotalQuestions(user_id: int) -> int:
     """
     
     """
-    return my_db["users"].find_one({"user_id": user_id})["total_questions"]
+    doc = my_db["users"].find_one({"user_id": user_id})
+    if doc is None:
+        return 0
+    return doc.get("total_questions", 0)
 
 
 
@@ -237,12 +269,12 @@ def updateTotalQuestions(user_id: int, total_questions: int) -> None:
 
 ################# LEADERBOARD FUNCTIONS ####################
 
-def getLead(what:str) -> list:
+def getLead(what:str) -> List[Tuple[str, Any]]:
     lead_dict = {}
-    for user in my_db['users'].find({}):
-        lead_dict.update({user['first_name']: user[what]})
-    lead_dict = sorted(lead_dict.items(), key=lambda x: x[1], reverse=True)
-    return lead_dict[:10]
+    for user in my_db['users'].find({}, {"first_name": 1, what: 1, "user_id": 1}).sort(what, -1).limit(10):
+        lead_dict[user["user_id"]] = (user.get("first_name"), user.get(what))
+    lead_list = sorted(lead_dict.values(), key=lambda x: x[1] if x[1] is not None else 0, reverse=True)
+    return lead_list[:10]
 
 
 def getAllUserIds():
@@ -277,6 +309,7 @@ def add_user_message_data(message_id_in_admin_chat:int ,message_id_in_user_chat:
             "user_id": user_id,
             "message_id_in_admin_chat": message_id_in_admin_chat,
             "message_id_in_user_chat": message_id_in_user_chat,
+            "created_at": datetime.now(timezone.utc),
         }
         my_col.insert_one(my_dict)
 def find_user_message_data(message_id_in_admin_chat:int):
@@ -289,7 +322,7 @@ def find_user_message_data(message_id_in_admin_chat:int):
         user_id: int
         message_id:int
     """
-    my_col = my_col = my_db["user_chatting_data"]
+    my_col = my_db["user_chatting_data"]
     data = my_col.find_one({"message_id_in_admin_chat": message_id_in_admin_chat})
 
     if data is not None:
@@ -309,7 +342,8 @@ def delete_group(chat_id: int) -> None:
 def delete_old_user_chatting_data():
     my_col = my_db["user_chatting_data"]
     # Define the time threshold for deletion (24 hours ago from the current time)
-    threshold_time = datetime.now() - timedelta(hours=24)
+    threshold_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
     # Find records older than the threshold time and delete them
-    my_col.delete_many({"timestamp": {"$lt": threshold_time}})
+    # (created_at preferred; timestamp fallback for legacy records)
+    my_col.delete_many({"$or": [{"created_at": {"$lt": threshold_time}}, {"timestamp": {"$lt": threshold_time}}]})

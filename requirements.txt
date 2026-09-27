@@ -1,5 +1,6 @@
-python-telegram-bot
-akinator
-pymongo
-dnspython
-python-dotenv
+python-telegram-bot==22.8
+akinator==2.1.0
+pymongo==4.18.2
+dnspython==2.8.0
+python-dotenv==1.2.3
+cloudscraper==1.2.71
